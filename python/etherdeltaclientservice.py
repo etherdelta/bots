@@ -185,8 +185,8 @@ class EtherDeltaClientService:
         self.trades = self.updateTradeList(self.token, self.trades, newTrades)
         self.my_trades = self.updateTradeList(self.token, self.my_trades, [x for x in newTrades if x['buyer'].lower() == self.userAccount.lower() or x['seller'].lower() == self.userAccount.lower()])
 
-        self.trades = sorted(self.trades, key=itemgetter('amount'), reverse=True)
-        self.trades = sorted(self.trades, key=itemgetter('price'))
+        self.trades = sorted(self.trades, key=itemgetter('amount'))
+        self.trades = sorted(self.trades, key=itemgetter('date'), reverse=True)
 
     def printMyOrderBook(self):
         print()
