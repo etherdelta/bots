@@ -62,6 +62,9 @@ import random
 import sys
 import web3
 
+# for debugging, enable this line and add pdb.set_trace() where you want a breakpoint:
+# import pdb
+
 from web3 import Web3, HTTPProvider
 from operator import itemgetter
 from collections import OrderedDict
@@ -150,6 +153,23 @@ class EtherDeltaClientService:
         #print("Orderbook size changed by " + str(len(orderbook) - orderbook_before) + " orders")
         return orderbook
 
+    def updateTradeList(self, token, tradelist, new_trades):
+        tradelistsize_before = len(tradelist)
+        for trade in new_trades:
+            # Delete deleted trades if getting the 'deleted' property does not return the 'no such property' default value (which is 'None')
+            if trade.get('deleted', None) != None:
+                print("Deleting this trade from the trade list: " + str(trade))
+                tradelist = [x for x in tradelist if x['txHash'].lower() != trade['txHash'].lower()]
+            elif len([x for x in tradelist if x['txHash'].lower() == trade['txHash'].lower()]) > 0:
+                newtradebook = []
+                for y in tradelist:
+                    if y['txHash'].lower() == trade['txHash'].lower(): newtradebook.append(trade)
+                tradelist = newtradebook
+            elif trade['tokenAddr'].lower() == token.lower():
+                tradelist.append(trade)
+        print("Trade list size changed by " + str(len(tradelist) - tradelistsize_before) + " trades")
+        return tradelist
+
     def updateOrders(self, newOrders):
         self.orders_sells = self.updateOneSideOfOrderBook('tokenGive', self.token, self.orders_sells, newOrders['sells'])
         self.my_orders_sells = self.updateOneSideOfOrderBook('tokenGive', self.token, self.my_orders_sells, [x for x in newOrders['sells'] if x['user'].lower() == self.userAccount.lower()])
@@ -162,12 +182,11 @@ class EtherDeltaClientService:
         self.orders_buys = sorted(self.orders_buys, key=itemgetter('price'), reverse=True)
 
     def updateTrades(self, newTrades):
-        valid_new_trades = [x for x in newTrades if ('tokenAddr' not in x or x['tokenAddr'].lower() == self.token.lower()) and x not in self.trades]
-        if len(valid_new_trades) > 0:
-            #print("Adding " + str(len(valid_new_trades)) + " new trades to the list...")
-            self.trades.extend(valid_new_trades)
-            self.trades = sorted(self.trades, key=itemgetter('date', 'amount'), reverse=True)
-        # TODO: also maintain my_trades list
+        self.trades = self.updateTradeList(self.token, self.trades, newTrades)
+        self.my_trades = self.updateTradeList(self.token, self.my_trades, [x for x in newTrades if x['buyer'].lower() == self.userAccount.lower() or x['seller'].lower() == self.userAccount.lower()])
+
+        self.trades = sorted(self.trades, key=itemgetter('amount'))
+        self.trades = sorted(self.trades, key=itemgetter('date'), reverse=True)
 
     def printMyOrderBook(self):
         print()
@@ -202,6 +221,22 @@ class EtherDeltaClientService:
         numTrades = 10
         for trade in self.trades[0:numTrades]:
             print(trade['date'] + " " + trade['side'] + " " + trade['amount'] + " @ " + trade['price'])
+
+    def printMyTrades(self):
+        print()
+        print('My recent trades')
+        print('----------------')
+        numTrades = 10
+        for trade in self.my_trades[0:numTrades]:
+            print(trade['date'] + " " + trade['side'] + " " + trade['amount'] + " @ " + trade['price'])
+
+    def printBalances(self, token, userAccount):
+        print("Account balances:")
+        print("=================")
+        print("Wallet account balance: %.18f ETH" % self.getBalance('ETH', userAccount))
+        print("Wallet token balance: %.18f tokens" % self.getBalance(token, userAccount))
+        print("EtherDelta ETH balance: %.18f ETH" % self.getEtherDeltaBalance('ETH', userAccount))
+        print("EtherDelta token balance: %.18f tokens" % self.getEtherDeltaBalance(token, userAccount))
 
     def createOrder(self, side, expires, price, amount, token, userAccount, user_wallet_private_key, randomseed = None):
         global addressEtherDelta, web3
@@ -296,6 +331,7 @@ class EtherDeltaClientService:
         # Build binary representation of the function call with arguments
         abidata = self.contractEtherDelta.encodeABI('trade', kwargs=kwargs)
         print("abidata: " + str(abidata))
+        # Use the transaction count as the nonce
         nonce = web3.eth.getTransactionCount(self.userAccount)
         # Override to have same as other transaction:
         #nonce = 53
