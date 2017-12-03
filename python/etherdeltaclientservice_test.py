@@ -119,6 +119,19 @@ class TestTaker(unittest.TestCase):
         self.assertEqual(len(self.es.my_trades), 0)
         self.assertEqual(len(self.es.trades), 2)
 
+    def test_updateTrades_my_trades(self):
+        tradelist = [trade_sellside]
+        new_trades = [mytrade_buyside]
+	# Setup self.es
+        self.es.trades = tradelist
+        self.es.my_trades = []
+        self.es.token = token
+        self.es.userAccount = userAccount
+	# Test self.es
+        self.es.updateTrades(new_trades)
+        self.assertEqual(len(self.es.my_trades), 1)
+        self.assertEqual(len(self.es.trades), 2)	# trade should also get added to the general trade list
+
     def test_createSellOrder(self):
         result = self.es.createOrder('sell', 10000, 4, 2, token, userAccount, private_key, 42)
 

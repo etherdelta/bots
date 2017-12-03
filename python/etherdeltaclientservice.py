@@ -61,7 +61,9 @@ import json
 import random
 import sys
 import web3
-import pdb
+
+# for debugging, enable this line and add pdb.set_trace() where you want a breakpoint:
+# import pdb
 
 from web3 import Web3, HTTPProvider
 from operator import itemgetter
@@ -152,7 +154,6 @@ class EtherDeltaClientService:
         return orderbook
 
     def updateTradeList(self, token, tradelist, new_trades):
-        #pdb.set_trace()
         tradelistsize_before = len(tradelist)
         for trade in new_trades:
             # Delete deleted trades if getting the 'deleted' property does not return the 'no such property' default value (which is 'None')
