@@ -230,6 +230,13 @@ class EtherDeltaClientService:
         for trade in self.my_trades[0:numTrades]:
             print(trade['date'] + " " + trade['side'] + " " + trade['amount'] + " @ " + trade['price'])
 
+    def printBalances(self, token, userAccount):
+        print("Account balances:")
+        print("=================")
+        print("Wallet account balance: %.18f ETH" % self.getBalance('ETH', userAccount))
+        print("Wallet token balance: %.18f tokens" % self.getBalance(token, userAccount))
+        print("EtherDelta ETH balance: %.18f ETH" % self.getEtherDeltaBalance('ETH', userAccount))
+        print("EtherDelta token balance: %.18f tokens" % self.getEtherDeltaBalance(token, userAccount))
 
     def createOrder(self, side, expires, price, amount, token, userAccount, user_wallet_private_key, randomseed = None):
         global addressEtherDelta, web3
@@ -324,6 +331,7 @@ class EtherDeltaClientService:
         # Build binary representation of the function call with arguments
         abidata = self.contractEtherDelta.encodeABI('trade', kwargs=kwargs)
         print("abidata: " + str(abidata))
+        # Use the transaction count as the nonce
         nonce = web3.eth.getTransactionCount(self.userAccount)
         # Override to have same as other transaction:
         #nonce = 53

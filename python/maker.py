@@ -51,14 +51,7 @@ if __name__ == "__main__":
     es.start(userAccount, token)
     print("EtherDeltaClientService started")
 
-    print("")
-    print("Account balances:")
-    print("=================")
-    print("Wallet account balance: %.18f ETH" % es.getBalance('ETH', userAccount))
-    print("Wallet token balance: %.18f tokens" % es.getBalance(token, userAccount))
-    print("EtherDelta ETH balance: %.18f ETH" % es.getEtherDeltaBalance('ETH', userAccount))
-    print("EtherDelta token balance: %.18f tokens" % es.getEtherDeltaBalance(token, userAccount))
-    print("")
+    es.printBalances(token, userAccount)
 
     while es.getBestSellOrder() == None or es.getBestBuyOrder() == None:
         print("Waiting until best sell and buy orders are known...")
