@@ -61,6 +61,7 @@ import json
 import random
 import sys
 import web3
+import pdb
 
 from web3 import Web3, HTTPProvider
 from operator import itemgetter
@@ -150,6 +151,24 @@ class EtherDeltaClientService:
         #print("Orderbook size changed by " + str(len(orderbook) - orderbook_before) + " orders")
         return orderbook
 
+    def updateTradeList(self, token, tradelist, new_trades):
+        #pdb.set_trace()
+        tradelistsize_before = len(tradelist)
+        for trade in new_trades:
+            # Delete deleted trades if getting the 'deleted' property does not return the 'no such property' default value (which is 'None')
+            if trade.get('deleted', None) != None:
+                print("Deleting this trade from the trade list: " + str(trade))
+                tradelist = [x for x in tradelist if x['txHash'].lower() != trade['txHash'].lower()]
+            elif len([x for x in tradelist if x['txHash'].lower() == trade['txHash'].lower()]) > 0:
+                newtradebook = []
+                for y in tradelist:
+                    if y['txHash'].lower() == trade['txHash'].lower(): newtradebook.append(trade)
+                tradelist = newtradebook
+            elif trade['tokenAddr'].lower() == token.lower():
+                tradelist.append(trade)
+        print("Trade list size changed by " + str(len(tradelist) - tradelistsize_before) + " trades")
+        return tradelist
+
     def updateOrders(self, newOrders):
         self.orders_sells = self.updateOneSideOfOrderBook('tokenGive', self.token, self.orders_sells, newOrders['sells'])
         self.my_orders_sells = self.updateOneSideOfOrderBook('tokenGive', self.token, self.my_orders_sells, [x for x in newOrders['sells'] if x['user'].lower() == self.userAccount.lower()])
@@ -162,12 +181,11 @@ class EtherDeltaClientService:
         self.orders_buys = sorted(self.orders_buys, key=itemgetter('price'), reverse=True)
 
     def updateTrades(self, newTrades):
-        valid_new_trades = [x for x in newTrades if ('tokenAddr' not in x or x['tokenAddr'].lower() == self.token.lower()) and x not in self.trades]
-        if len(valid_new_trades) > 0:
-            #print("Adding " + str(len(valid_new_trades)) + " new trades to the list...")
-            self.trades.extend(valid_new_trades)
-            self.trades = sorted(self.trades, key=itemgetter('date', 'amount'), reverse=True)
-        # TODO: also maintain my_trades list
+        self.trades = self.updateTradeList(self.token, self.trades, newTrades)
+        self.my_trades = self.updateTradeList(self.token, self.my_trades, [x for x in newTrades if x['user'].lower() == self.userAccount.lower()])
+
+        self.trades = sorted(self.trades, key=itemgetter('amount'), reverse=True)
+        self.trades = sorted(self.trades, key=itemgetter('price'))
 
     def printMyOrderBook(self):
         print()
