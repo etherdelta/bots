@@ -182,7 +182,7 @@ class EtherDeltaClientService:
 
     def updateTrades(self, newTrades):
         self.trades = self.updateTradeList(self.token, self.trades, newTrades)
-        self.my_trades = self.updateTradeList(self.token, self.my_trades, [x for x in newTrades if x['user'].lower() == self.userAccount.lower()])
+        self.my_trades = self.updateTradeList(self.token, self.my_trades, [x for x in newTrades if x['buyer'].lower() == self.userAccount.lower() or x['seller'].lower() == self.userAccount.lower()])
 
         self.trades = sorted(self.trades, key=itemgetter('amount'), reverse=True)
         self.trades = sorted(self.trades, key=itemgetter('price'))
@@ -220,6 +220,15 @@ class EtherDeltaClientService:
         numTrades = 10
         for trade in self.trades[0:numTrades]:
             print(trade['date'] + " " + trade['side'] + " " + trade['amount'] + " @ " + trade['price'])
+
+    def printMyTrades(self):
+        print()
+        print('My recent trades')
+        print('----------------')
+        numTrades = 10
+        for trade in self.my_trades[0:numTrades]:
+            print(trade['date'] + " " + trade['side'] + " " + trade['amount'] + " @ " + trade['price'])
+
 
     def createOrder(self, side, expires, price, amount, token, userAccount, user_wallet_private_key, randomseed = None):
         global addressEtherDelta, web3
