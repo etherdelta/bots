@@ -4,6 +4,11 @@
 
 `dotnet restore`
 
+## Configuration ##
+
+Add configuration settings into `App.config` file.
+
+
 ## Run the taker bot ##
 
 `dotnet run taker`

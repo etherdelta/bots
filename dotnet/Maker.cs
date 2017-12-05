@@ -12,24 +12,24 @@ using Newtonsoft.Json.Linq;
 
 namespace EhterDelta.Bots.Dontnet
 {
-  public class Maker : Taker
+  public class Maker : BaseBot
   {
     public Maker(EtherDeltaConfiguration config, ILogger logger = null) : base(config, logger)
     {
       var ordersPerSide = 1;
-      var expires = BlockNumber + 10;
-      var buyOrdersToPlace = ordersPerSide - service.MyOrders.Buys.length;
-      var sellOrdersToPlace = ordersPerSide - service.MyOrders.Sells.length;
+      var expires = service.GetBlockNumber().Result + 10;
+      var buyOrdersToPlace = ordersPerSide - service.MyOrders.Buys.Count;
+      var sellOrdersToPlace = ordersPerSide - service.MyOrders.Sells.Count;
       var buyVolumeToPlace = EtherDeltaETH;
       var sellVolumeToPlace = EtherDeltaToken;
 
-      if (service.Orders.Buys.length <= 0 || service.Orders.Sells.length <= 0)
+      if (service.Orders.Buys.Count <= 0 || service.Orders.Sells.Count <= 0)
       {
         throw new Exception("Market is not two-sided, cannot calculate mid-market");
       }
 
       var bestBuy = decimal.Parse(service.Orders.Buys[0].price);
-      var bestSell = decimal.Parse(service.Orders.Sells[0].price);
+      var bestSell = service.Orders.Sells[0].Price;
 
       // Make sure we have a reliable mid market
       if (Math.Abs((bestBuy - bestSell) / (bestBuy + bestSell) / 2.0) > 0.05)
@@ -45,7 +45,7 @@ namespace EhterDelta.Bots.Dontnet
       {
         var price = midMarket + ((i + 1) * midMarket * 0.05);
         var amount = service.ToEth(sellVolumeToPlace / sellOrdersToPlace, service.Config.UnitDecimals);
-        Console.WriteLine($"Sell { amount.toNumber().toFixed(3)} @ { price.toFixed(9)}");
+        Console.WriteLine($"Sell { amount.ToString("N3")} @ { price.ToString("N9")}");
         try
         {
           var order = service.CreateOrder(OrderType.Sell, expires, price, amount);

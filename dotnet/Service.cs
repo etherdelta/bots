@@ -46,11 +46,19 @@ namespace EhterDelta.Bots.Dontnet
     public Service(EtherDeltaConfiguration config, ILogger configLogger)
     {
       logger = configLogger;
-
       Log("Starting");
 
-      Orders = new Orders();
-      MyOrders = new Orders();
+      Orders = new Orders
+      {
+        Sells = new List<Order>(),
+        Buys = new List<dynamic>()
+      };
+
+      MyOrders = new Orders
+      {
+        Sells = new List<Order>(),
+        Buys = new List<dynamic>()
+      };
 
       Config = config;
       Web3 = new Web3(config.Provider);
@@ -64,6 +72,48 @@ namespace EhterDelta.Bots.Dontnet
       EthContract = Web3.Eth.GetContract(tokenAbi, Config.Token);
 
       InitSocket();
+    }
+
+    internal async Task TakeOrder(Order order, double fraction)
+    {
+      Console.WriteLine(order.AmountGet);
+      var amount = 1 * fraction;
+
+      // var maxGas = 250000;
+      // var gasPriceWei = 1000000000;   // 1 Gwei
+
+      var txCount = await Web3.Eth.Transactions.GetTransactionCount.SendRequestAsync(Config.User);
+      var fn = EtherDeltaContract.GetFunction("testTrade");
+
+      var resp = await fn.CallAsync<bool>(
+        order.TokenGet,
+        order.AmountGet.Value,
+        order.TokenGive,
+        order.AmountGive.Value,
+        order.Expires,
+        txCount.Value,
+        order.User,
+        order.V,
+        order.R,
+        order.S,
+         amount,
+         Config.User
+      );
+
+
+      Console.WriteLine(resp);
+
+
+
+
+      var encoded = Web3.OfflineTransactionSigner.SignTransaction(Config.PrivateKey, Config.AddressEtherDelta, 10,
+                 txCount.Value);
+
+    }
+
+    internal Order GetBestAvailableSell()
+    {
+      return Orders.Sells.FirstOrDefault();
     }
 
     internal async Task<BigInteger> GetBlockNumber()
@@ -88,7 +138,7 @@ namespace EhterDelta.Bots.Dontnet
       //new Nethereum.Signer.MessageSigner().ToString
     }
 
-    internal decimal ToEth(dynamic dynamic, object decimals)
+    internal BigInteger ToEth(dynamic dynamic, object decimals)
     {
       throw new NotImplementedException();
     }
@@ -139,7 +189,7 @@ namespace EhterDelta.Bots.Dontnet
       }
     }
 
-    internal async Task<decimal> GetBalance(string token, string user, int decimalPlacesToUnit)
+    internal async Task<decimal> GetBalance(string token, string user)
     {
       var unitConversion = new UnitConversion();
       BigInteger balance = 0;
@@ -165,10 +215,10 @@ namespace EhterDelta.Bots.Dontnet
         Log(ex.Message);
       }
 
-      return unitConversion.FromWei(balance, decimalPlacesToUnit);
+      return unitConversion.FromWei(balance, Config.UnitDecimals);
     }
 
-    internal async Task<decimal> GetEtherDeltaBalance(string token, string user, int decimalPlacesToUnit)
+    internal async Task<decimal> GetEtherDeltaBalance(string token, string user)
     {
       var unitConversion = new UnitConversion();
       BigInteger balance = 0;
@@ -189,7 +239,7 @@ namespace EhterDelta.Bots.Dontnet
         Log(ex.Message);
       }
 
-      return unitConversion.FromWei(balance, decimalPlacesToUnit);
+      return unitConversion.FromWei(balance, Config.UnitDecimals);
     }
 
     private void SocketError(object sender, SuperSocket.ClientEngine.ErrorEventArgs e)
@@ -240,9 +290,12 @@ namespace EhterDelta.Bots.Dontnet
 
       if (orders.GetType() == typeof(JObject))
       {
+        var sells = ((JArray)orders.sells)
+          .Where(_ => _["tokenGive"] != null && _["tokenGive"].ToString() == Config.Token)
+          .Select(_ => _.ToObject<Order>())
+          .ToList();
 
-        var sells = ((JArray)orders.sells).Where(_ => _["tokenGive"] != null && _["tokenGive"].ToString() == Config.Token).ToList();
-        if (sells != null && sells.Count > 0)
+        if (sells != null && sells.Count() > 0)
         {
           Orders.Sells = sells;
         }
@@ -250,7 +303,7 @@ namespace EhterDelta.Bots.Dontnet
         var buys = ((JArray)orders.buys).Where(_ => _["tokenGet"] != null && _["tokenGet"].ToString() == Config.Token).ToList();
         if (buys != null && buys.Count > 0)
         {
-          Orders.Buys = buys;
+          Orders.Buys = buys.ToList<dynamic>();
         }
       }
 
@@ -279,11 +332,5 @@ namespace EhterDelta.Bots.Dontnet
     public dynamic Trades { get; set; }
     public List<dynamic> MyTrades { get; set; }
     public dynamic Market { get; private set; }
-  }
-
-  public class Orders
-  {
-    public dynamic Sells { get; set; }
-    public dynamic Buys { get; set; }
   }
 }
