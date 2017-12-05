@@ -2,6 +2,7 @@
 
 using System;
 using System.Linq;
+using System.Configuration;
 
 namespace EhterDelta.Bots.Dontnet
 {
@@ -18,14 +19,15 @@ namespace EhterDelta.Bots.Dontnet
 
       var config = new EtherDeltaConfiguration
       {
-        SocketUrl = "wss://socket.etherdelta.com/socket.io/?transport=websocket",
-        Provider = "https://mainnet.infura.io/Ky03pelFIxoZdAUsr82w",
-        AddressEtherDelta = "0x8d12a197cb00d4747a1fe03395095ce2a5cc6819",
-        AbiFile = "../contracts/etherdelta.json",
-        TokenFile = "../contracts/token.json",
-        Token = "0x21692a811335301907ecd6343743791802ba7cfd",
-        User = "0x6e9bcD9f07d3961444555967D5F8ACaaae1559f4",
-        UnitDecimals = 18
+        SocketUrl = ConfigurationManager.AppSettings["SocketUrl"],
+        Provider = ConfigurationManager.AppSettings["Provider"],
+        AddressEtherDelta = ConfigurationManager.AppSettings["AddressEtherDelta"],
+        AbiFile = ConfigurationManager.AppSettings["AbiFile"],
+        TokenFile = ConfigurationManager.AppSettings["TokenFile"],
+        Token = ConfigurationManager.AppSettings["Token"],
+        User = ConfigurationManager.AppSettings["User"],
+        PrivateKey = ConfigurationManager.AppSettings["PrivateKey"],
+        UnitDecimals = int.Parse(ConfigurationManager.AppSettings["UnitDecimals"]),
       };
 
       ILogger logger = null;
@@ -34,7 +36,7 @@ namespace EhterDelta.Bots.Dontnet
         logger = new ConsoleLogger();
       }
 
-      if (args[0] != "taker")
+      if (args[0] == "taker")
       {
         new Taker(config, logger);
       }
