@@ -4,6 +4,14 @@
 
 `dotnet restore`
 
-## Run the bot (taker) ##
+## Run the taker bot ##
 
-`dotnet run`
+`dotnet run taker`
+
+## Run the maker bot ##
+
+`dotnet run maker`
+
+## Run bot in verbose mode ##
+
+`dotnet run maker -v`

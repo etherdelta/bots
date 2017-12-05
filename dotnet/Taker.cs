@@ -4,6 +4,7 @@ using Nethereum.Hex.HexTypes;
 using Nethereum.Web3.Accounts;
 using Nethereum.JsonRpc.Client;
 using System;
+using System.Numerics;
 using System.Linq;
 using System.Threading;
 using System.Collections.Generic;
@@ -11,41 +12,43 @@ using Newtonsoft.Json.Linq;
 
 namespace EhterDelta.Bots.Dontnet
 {
-  class Taker
+  public class Taker
   {
-    public Service service { get; private set; }
+    protected Service service { get; private set; }
 
-    public Taker(ILogger logger = null)
+    protected BigInteger BlockNumber { get; private set; }
+    protected decimal EtherDeltaETH { get; private set; }
+    protected decimal WalletETH { get; private set; }
+
+    protected decimal EtherDeltaToken { get; private set; }
+    protected decimal WalletToken { get; private set; }
+
+    public Taker(EtherDeltaConfiguration config, ILogger logger = null)
     {
-      var config = new EtherDeltaConfiguration
-      {
-        SocketUrl = "wss://socket.etherdelta.com/socket.io/?transport=websocket",
-        Provider = "https://mainnet.infura.io/Ky03pelFIxoZdAUsr82w",
-        AddressEtherDelta = "0x8d12a197cb00d4747a1fe03395095ce2a5cc6819",
-        AbiFile = "../contracts/etherdelta.json",
-        TokenFile = "../contracts/token.json",
-        Token = "0x8f3470a7388c05ee4e7af3d01d8c722b0ff52374",
-        User = "0x6e9bcD9f07d3961444555967D5F8ACaaae1559f4",
-        UnitDecimals = 18
-      };
-
+      Console.ForegroundColor = ConsoleColor.White;
       service = new Service(config, logger);
 
-      GetMarket().Wait();
-
-      Console.WriteLine("Order book");
-
-      PrintOrders();
-      PrintTrades();
+      //GetMarket().Wait();
 
       Task[] tasks = new[] {
+        GetMarket(),
         GetBalanceAsync("ETH", config.User, config.UnitDecimals),
         GetBalanceAsync(config.Token, config.User, config.UnitDecimals),
         GetEtherDeltaBalance("ETH", config.User, config.UnitDecimals),
-        GetEtherDeltaBalance(config.Token, config.User, config.UnitDecimals)
+        GetEtherDeltaBalance(config.Token, config.User, config.UnitDecimals),
+        GetBlockNumber()
       };
 
       Task.WhenAll(tasks).Wait();
+
+      PrintOrders();
+      PrintTrades();
+      PrintWallet();
+    }
+
+    private async Task GetBlockNumber()
+    {
+      BlockNumber = await service.GetBlockNumber();
     }
 
     private async Task<decimal> GetEtherDeltaBalance(string token, string user, int unitDecimals)
@@ -54,11 +57,19 @@ namespace EhterDelta.Bots.Dontnet
       try
       {
         balance = await service.GetEtherDeltaBalance(token, user, unitDecimals);
-        Console.WriteLine($"Ether Delta {token} balance: {balance}");
       }
       catch (TimeoutException)
       {
         Console.WriteLine("Could not get balance");
+      }
+
+      if (token == "ETH")
+      {
+        EtherDeltaETH = balance;
+      }
+      else
+      {
+        EtherDeltaToken = balance;
       }
       return balance;
     }
@@ -70,13 +81,20 @@ namespace EhterDelta.Bots.Dontnet
       try
       {
         balance = await service.GetBalance(token, user, unitDecimals);
-        Console.WriteLine($"Wallet {token} balance: {balance}");
       }
       catch (TimeoutException)
       {
         Console.WriteLine("Could not get balance");
       }
 
+      if (token == "ETH")
+      {
+        WalletETH = balance;
+      }
+      else
+      {
+        WalletToken = balance;
+      }
       return balance;
     }
 
@@ -96,13 +114,17 @@ namespace EhterDelta.Bots.Dontnet
           var tradeAmount = (double)((JValue)trade.amount);
           var tradeDate = (DateTime)((JValue)trade.date);
 
+          Console.ForegroundColor = trade.side == "sell" ? ConsoleColor.Red : ConsoleColor.Green;
           Console.WriteLine($"{tradeDate.ToLocalTime()} {trade.side} {tradeAmount.ToString("N3")} @ {tradePrice.ToString("N9")}");
         }
       }
+
+      Console.ForegroundColor = ConsoleColor.White;
     }
 
     private void PrintOrders()
     {
+      Console.WriteLine("Order book");
       int ordersPerSide = 10;
 
       List<JToken> sells = service.Orders != null ? service.Orders.Sells : null;
@@ -117,10 +139,12 @@ namespace EhterDelta.Bots.Dontnet
       sells = sells.Take(ordersPerSide).Reverse().ToList();
       buys = buys.Take(ordersPerSide).ToList();
 
+      Console.ForegroundColor = ConsoleColor.Red;
       foreach (var item in sells)
       {
         Console.WriteLine(FormatItem(item));
       }
+      Console.ForegroundColor = ConsoleColor.White;
 
       if (buys.Count > 0 && sells.Count > 0)
       {
@@ -133,6 +157,8 @@ namespace EhterDelta.Bots.Dontnet
         Console.WriteLine("--------");
       }
 
+      Console.ForegroundColor = ConsoleColor.Green;
+
       if (buys != null)
       {
         foreach (var item in buys)
@@ -141,8 +167,16 @@ namespace EhterDelta.Bots.Dontnet
         }
       }
 
+      Console.ForegroundColor = ConsoleColor.White;
     }
 
+    private void PrintWallet()
+    {
+      Console.WriteLine($"Wallet ETH balance: {WalletETH}");
+      Console.WriteLine($"EtherDelta ETH balance: {EtherDeltaETH}");
+      Console.WriteLine($"Wallet token balance: {WalletToken}");
+      Console.WriteLine($"EtherDelta token balance: {EtherDeltaToken}");
+    }
     private string FormatItem(dynamic item)
     {
       item.price = (double)item.price;

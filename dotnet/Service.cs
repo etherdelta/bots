@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using System.Linq;
+using System.Numerics;
 using System.Threading;
 using System.Threading.Tasks;
 using Nethereum.Contracts;
@@ -13,13 +14,13 @@ using WebSocket4Net;
 using Nethereum.Hex.HexTypes;
 using Nethereum.RPC.Eth.Transactions;
 using Nethereum.RPC.Eth.DTOs;
-using System.Numerics;
 using Nethereum.Util;
 
 namespace EhterDelta.Bots.Dontnet
 {
   public class Service
   {
+    private const string ZeroToken = "0x0000000000000000000000000000000000000000";
     private WebSocket socket;
     const int SocketMessageTimeout = 30000;
     private void Log(string message)
@@ -63,6 +64,38 @@ namespace EhterDelta.Bots.Dontnet
       EthContract = Web3.Eth.GetContract(tokenAbi, Config.Token);
 
       InitSocket();
+    }
+
+    internal async Task<BigInteger> GetBlockNumber()
+    {
+      return await Web3.Eth.Blocks.GetBlockNumber.SendRequestAsync();
+    }
+
+    internal async Task CreateOrder(OrderType orderType, BigInteger expires, BigInteger price, BigInteger amount)
+    {
+      await Task.Delay(1);
+
+      var amountBigNum = amount;
+      var amountBaseBigNum = amount * price;
+      var contractAddr = Config.AddressEtherDelta;
+      var tokenGet = orderType == OrderType.Buy ? Config.Token : ZeroToken;
+      var tokenGive = orderType == OrderType.Sell ? Config.Token : ZeroToken;
+      var amountGet = orderType == OrderType.Buy ? toWei(amountBigNum, Config.UnitDecimals) : toWei(amountBaseBigNum, Config.UnitDecimals);
+      var amountGive = orderType == OrderType.Sell ? toWei(amountBigNum, Config.UnitDecimals) : toWei(amountBaseBigNum, Config.UnitDecimals);
+      var orderNonce = new Random().Next();
+
+
+      //new Nethereum.Signer.MessageSigner().ToString
+    }
+
+    internal decimal ToEth(dynamic dynamic, object decimals)
+    {
+      throw new NotImplementedException();
+    }
+
+    private string toWei(BigInteger amountBigNum, int unitDecimals)
+    {
+      throw new NotImplementedException();
     }
 
     internal void Close()
@@ -144,7 +177,7 @@ namespace EhterDelta.Bots.Dontnet
       {
         if (token == "ETH")
         {
-          token = "0x0000000000000000000000000000000000000000";
+          token = ZeroToken;
         }
 
         var tokenFunction = EtherDeltaContract.GetFunction("balanceOf");
@@ -242,8 +275,8 @@ namespace EhterDelta.Bots.Dontnet
     public Contract EtherDeltaContract { get; }
     public Contract EthContract { get; }
     public Orders Orders { get; set; }
-    public dynamic Trades { get; set; }
     public Orders MyOrders { get; set; }
+    public dynamic Trades { get; set; }
     public List<dynamic> MyTrades { get; set; }
     public dynamic Market { get; private set; }
   }
