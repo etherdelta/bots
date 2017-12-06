@@ -6,3 +6,4 @@
 !.vscode/extensions.json
 bin/
 obj/
+.vs

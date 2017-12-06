@@ -1,8 +1,8 @@
 namespace EhterDelta.Bots.Dontnet
 {
-  internal enum OrderType
-  {
-    Buy,
-    Sell
-  }
+    internal enum OrderType
+    {
+        Buy,
+        Sell
+    }
 }

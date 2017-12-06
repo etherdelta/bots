@@ -1,7 +1,7 @@
 namespace EhterDelta.Bots.Dontnet
 {
-  public interface ILogger
-  {
-    void Log(string message);
-  }
+    public interface ILogger
+    {
+        void Log(string message);
+    }
 }
