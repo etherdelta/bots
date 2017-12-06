@@ -9,6 +9,10 @@ using System.Linq;
 using System.Numerics;
 using System.Threading.Tasks;
 using WebSocket4Net;
+using System.Text;
+using Nethereum.ABI;
+using Nethereum.Hex.HexConvertors.Extensions;
+using Nethereum.RPC.Eth.DTOs;
 
 namespace EhterDelta.Bots.Dontnet
 {
@@ -16,7 +20,7 @@ namespace EhterDelta.Bots.Dontnet
     {
         private const string ZeroToken = "0x0000000000000000000000000000000000000000";
         private WebSocket socket;
-        const int SocketMessageTimeout = 30000;
+        const int SocketMessageTimeout = 20000;
         private void Log(string message)
         {
             if (logger != null)
@@ -68,65 +72,58 @@ namespace EhterDelta.Bots.Dontnet
             InitSocket();
         }
 
-        internal async Task TakeOrder(Order order, double fraction)
+        internal async Task<TransactionReceipt> TakeOrder(Order order, double fraction)
         {
-            Console.WriteLine(order.AmountGet);
-            var amount = 1 * fraction;
-
-            // var maxGas = 250000;
-            // var gasPriceWei = 1000000000;   // 1 Gwei
+            var amount = order.AmountGet * new BigInteger(fraction);
 
             var txCount = await Web3.Eth.Transactions.GetTransactionCount.SendRequestAsync(Config.User);
-            var fn = EtherDeltaContract.GetFunction("testTrade");
+            var fnTest = EtherDeltaContract.GetFunction("testTrade");
 
-            var resp = await fn.CallAsync<bool>(
-              order.TokenGet,
-              order.AmountGet.Value,
-              order.TokenGive,
-              order.AmountGive.Value,
-              order.Expires,
-              txCount.Value,
-              order.User,
-              order.V,
-              order.R,
-              order.S,
-               amount,
-               Config.User
+            var willPass = await fnTest.CallAsync<bool>(
+                order.TokenGet,
+                order.AmountGet.Value,
+                order.TokenGive,
+                order.AmountGive.Value,
+                order.Expires,
+                order.Nonce,
+                order.User,
+                order.V,
+                order.R.HexToByteArray(),
+                order.S.HexToByteArray(),
+                amount,
+                Config.User
             );
 
 
-            var encoded = Web3.OfflineTransactionSigner.SignTransaction(Config.PrivateKey, Config.AddressEtherDelta, 10,
-                       txCount.Value);
+            if (!willPass)
+            {
+                Log("Order will fail");
+                throw new Exception("Order will fail");
+            }
 
-            /**
-            
-            
-       var privateKey = "0xb5b1870957d373ef0eeffecc6e4812c0fd08f554b37b233526acc331bf1544f7";
-       var senderAddress = "0x12890d2cce102216644c59daE5baed380d84830c";
-       var receiveAddress = "0x13f022d72158410433cbd66f5dd8bf6d2d129924";
-       var web3 = new Web3Geth();
+            var fnTrade = EtherDeltaContract.GetFunction("trade");
+            var data = fnTrade.GetData(
+                order.TokenGet,
+                order.AmountGet.Value,
+                order.TokenGive,
+                order.AmountGive.Value,
+                order.Expires,
+                order.Nonce,
+                order.User,
+                order.V,
+                order.R.HexToByteArray(),
+                order.S.HexToByteArray(),
+                amount
+            );
 
-       var txCount = await web3.Eth.Transactions.GetTransactionCount.SendRequestAsync(senderAddress);
-       var encoded = Web3.OfflineTransactionSigner.SignTransaction(privateKey, receiveAddress, 10,
-           txCount.Value);
+            var encoded = Web3.OfflineTransactionSigner.SignTransaction(Config.PrivateKey, Config.AddressEtherDelta, amount,
+                txCount, Config.GasPrice, Config.GasLimit, data);
 
-       Assert.True(Web3.OfflineTransactionSigner.VerifyTransaction(encoded));
+            var txId = await Web3.Eth.Transactions.SendRawTransaction.SendRequestAsync(encoded.EnsureHexPrefix());
 
-       Debug.WriteLine(Web3.OfflineTransactionSigner.GetSenderAddress(encoded));
-       Assert.Equal(senderAddress.EnsureHexPrefix().ToLower(), Web3.OfflineTransactionSigner.GetSenderAddress(encoded).EnsureHexPrefix().ToLower());
+            var receipt = await Web3.Eth.Transactions.GetTransactionReceipt.SendRequestAsync(txId);
 
-       var txId = await web3.Eth.Transactions.SendRawTransaction.SendRequestAsync("0x" + encoded);
-       var receipt = await web3.Eth.Transactions.GetTransactionReceipt.SendRequestAsync(txId);
-       while (receipt == null)
-       {
-           Thread.Sleep(1000);
-           receipt = await web3.Eth.Transactions.GetTransactionReceipt.SendRequestAsync(txId);
-       }
-
-       Assert.Equal(txId, receipt.TransactionHash);
-       return true;
-        */
-
+            return receipt;
         }
 
         internal Order GetBestAvailableSell()
@@ -152,8 +149,6 @@ namespace EhterDelta.Bots.Dontnet
             var amountGive = orderType == OrderType.Sell ? toWei(amountBigNum, Config.UnitDecimals) : toWei(amountBaseBigNum, Config.UnitDecimals);
             var orderNonce = new Random().Next();
 
-
-            //new Nethereum.Signer.MessageSigner().ToString
         }
 
         internal BigInteger ToEth(dynamic dynamic, object decimals)
@@ -273,6 +268,7 @@ namespace EhterDelta.Bots.Dontnet
 
         public async Task WaitForMarket()
         {
+            Log("Wait for Market");
             Market = null;
             socket.Send(new Message
             {
@@ -286,12 +282,16 @@ namespace EhterDelta.Bots.Dontnet
 
             var gotMarket = Task.Run(() =>
             {
-                while (Market == null) { Task.Delay(1000); }
+                while (Market == null)
+                {
+                    Task.Delay(1000).Wait();
+                }
             });
 
             var completed = await Task.WhenAny(gotMarket, Task.Delay(SocketMessageTimeout));
+            Log("Market Completed ...");
 
-            if (completed != gotMarket)
+            if (!gotMarket.IsCompletedSuccessfully)
             {
                 throw new TimeoutException("Get Market timeout");
             }
@@ -309,8 +309,8 @@ namespace EhterDelta.Bots.Dontnet
             if (orders.GetType() == typeof(JObject))
             {
                 var sells = ((JArray)orders.sells)
-                  .Where(_ => _["tokenGive"] != null && _["tokenGive"].ToString() == Config.Token)
-                  .Select(_ => _.ToObject<Order>())
+                  .Where(jtoken => jtoken["tokenGive"] != null && jtoken["tokenGive"].ToString() == Config.Token)
+                  .Select(jtoken => Order.FromJson(jtoken))
                   .ToList();
 
                 if (sells != null && sells.Count() > 0)
@@ -318,7 +318,7 @@ namespace EhterDelta.Bots.Dontnet
                     Orders.Sells = sells;
                 }
 
-                var buys = ((JArray)orders.buys).Where(_ => _["tokenGet"] != null && _["tokenGet"].ToString() == Config.Token).ToList();
+                var buys = ((JArray)orders.buys).Where(jtoken => jtoken["tokenGet"] != null && jtoken["tokenGet"].ToString() == Config.Token).ToList();
                 if (buys != null && buys.Count > 0)
                 {
                     Orders.Buys = buys.ToList<dynamic>();

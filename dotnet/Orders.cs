@@ -1,6 +1,8 @@
 using Nethereum.Hex.HexTypes;
 using System.Collections.Generic;
 using System.Numerics;
+using Newtonsoft.Json.Linq;
+using System;
 
 namespace EhterDelta.Bots.Dontnet
 {
@@ -31,5 +33,22 @@ namespace EhterDelta.Bots.Dontnet
         public int V { get; internal set; }
         public string R { get; internal set; }
         public string S { get; internal set; }
+
+        internal static Order FromJson(JToken jtoken)
+        {
+            var order = jtoken.ToObject<Order>();
+            try
+            {
+                order.V = jtoken.Value<int>("v");
+                order.R = jtoken.Value<string>("r");
+                order.S = jtoken.Value<string>("s");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex.Message);
+            }
+
+            return order;
+        }
     }
 }

@@ -14,11 +14,19 @@ namespace EhterDelta.Bots.Dontnet
                 var desiredAmountBase = 0.001;
 
                 var fraction = Math.Min(desiredAmountBase / order.EthAvailableVolumeBase, 1);
-                Service.TakeOrder(order, fraction).Wait();
+                try
+                {
+                    Service.TakeOrder(order, fraction).Wait();
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine(ex.Message);
+                }
             }
             else
             {
                 Console.WriteLine("No Available order");
+                Console.WriteLine(Service.Orders);
             }
 
             Console.WriteLine();
