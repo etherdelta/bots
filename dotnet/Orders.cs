@@ -9,14 +9,14 @@ namespace EhterDelta.Bots.Dontnet
     public class Orders
     {
         public List<Order> Sells { get; set; }
-        public List<dynamic> Buys { get; set; }
+        public List<Order> Buys { get; set; }
     }
 
     public class Order
     {
         public string Id { get; set; }
         public string Amount { get; set; }
-        public double Price { get; set; }
+        public decimal Price { get; set; }
         public string TokenGet { get; set; }
         public HexBigInteger AmountGet { get; set; }
         public string TokenGive { get; set; }
@@ -28,7 +28,7 @@ namespace EhterDelta.Bots.Dontnet
         public string AvailableVolume { get; set; }
         public decimal EthAvailableVolume { get; set; }
         public string AvailableVolumeBase { get; set; }
-        public double EthAvailableVolumeBase { get; set; }
+        public decimal EthAvailableVolumeBase { get; set; }
         public string AmountFilled { get; set; }
         public int V { get; internal set; }
         public string R { get; internal set; }

@@ -11,7 +11,7 @@ namespace EhterDelta.Bots.Dontnet
             if (order != null)
             {
                 Console.WriteLine($"Best available: Sell {order.EthAvailableVolume.ToString("N3")} @ {order.Price.ToString("N9")}");
-                var desiredAmountBase = 0.001;
+                var desiredAmountBase = 0.001m;
 
                 var fraction = Math.Min(desiredAmountBase / order.EthAvailableVolumeBase, 1);
                 try

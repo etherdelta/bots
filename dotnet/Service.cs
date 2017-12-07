@@ -21,25 +21,8 @@ namespace EhterDelta.Bots.Dontnet
         private const string ZeroToken = "0x0000000000000000000000000000000000000000";
         private WebSocket socket;
         const int SocketMessageTimeout = 20000;
-        private void Log(string message)
-        {
-            if (logger != null)
-            {
-                logger.Log(message);
-            }
-        }
-
-        private void InitSocket()
-        {
-            socket = new WebSocket(Config.SocketUrl);
-            socket.Opened += SocketOpened;
-            socket.Error += SocketError;
-            socket.Closed += SocketClosed;
-            socket.MessageReceived += SocketMessageReceived;
-            socket.OpenAsync().Wait();
-        }
-
         private ILogger logger;
+
 
         public Service(EtherDeltaConfiguration config, ILogger configLogger)
         {
@@ -49,13 +32,13 @@ namespace EhterDelta.Bots.Dontnet
             Orders = new Orders
             {
                 Sells = new List<Order>(),
-                Buys = new List<dynamic>()
+                Buys = new List<Order>()
             };
 
             MyOrders = new Orders
             {
                 Sells = new List<Order>(),
-                Buys = new List<dynamic>()
+                Buys = new List<Order>()
             };
 
             Config = config;
@@ -72,7 +55,17 @@ namespace EhterDelta.Bots.Dontnet
             InitSocket();
         }
 
-        internal async Task<TransactionReceipt> TakeOrder(Order order, double fraction)
+        public EtherDeltaConfiguration Config { get; }
+        public Web3 Web3 { get; }
+        public Contract EtherDeltaContract { get; }
+        public Contract EthContract { get; }
+        public Orders Orders { get; set; }
+        public Orders MyOrders { get; set; }
+        public dynamic Trades { get; set; }
+        public List<dynamic> MyTrades { get; set; }
+        public dynamic Market { get; private set; }
+
+        internal async Task<TransactionReceipt> TakeOrder(Order order, decimal fraction)
         {
             var amount = order.AmountGet * new BigInteger(fraction);
 
@@ -120,9 +113,7 @@ namespace EhterDelta.Bots.Dontnet
                 txCount, Config.GasPrice, Config.GasLimit, data);
 
             var txId = await Web3.Eth.Transactions.SendRawTransaction.SendRequestAsync(encoded.EnsureHexPrefix());
-
             var receipt = await Web3.Eth.Transactions.GetTransactionReceipt.SendRequestAsync(txId);
-
             return receipt;
         }
 
@@ -136,12 +127,12 @@ namespace EhterDelta.Bots.Dontnet
             return await Web3.Eth.Blocks.GetBlockNumber.SendRequestAsync();
         }
 
-        internal async Task CreateOrder(OrderType orderType, BigInteger expires, BigInteger price, BigInteger amount)
+        internal async Task CreateOrder(OrderType orderType, BigInteger expires, decimal price, BigInteger amount)
         {
             await Task.Delay(1);
 
             var amountBigNum = amount;
-            var amountBaseBigNum = amount * price;
+            var amountBaseBigNum = amount * new BigInteger(price);
             var contractAddr = Config.AddressEtherDelta;
             var tokenGet = orderType == OrderType.Buy ? Config.Token : ZeroToken;
             var tokenGive = orderType == OrderType.Sell ? Config.Token : ZeroToken;
@@ -299,7 +290,7 @@ namespace EhterDelta.Bots.Dontnet
 
         private void UpdateOrders(dynamic orders)
         {
-            //var minOrderSize = 0.001;
+            var minOrderSize = 0.001m;
 
             if (orders == null)
             {
@@ -318,14 +309,37 @@ namespace EhterDelta.Bots.Dontnet
                     Orders.Sells = sells;
                 }
 
-                var buys = ((JArray)orders.buys).Where(jtoken => jtoken["tokenGet"] != null && jtoken["tokenGet"].ToString() == Config.Token).ToList();
-                if (buys != null && buys.Count > 0)
+                var buys = ((JArray)orders.buys)
+                    .Where(jtoken => jtoken["tokenGet"] != null && jtoken["tokenGet"].ToString() == Config.Token)
+                    .Select(jtoken => Order.FromJson(jtoken))
+                    .ToList();
+
+                if (buys != null && buys.Count() > 0)
                 {
-                    Orders.Buys = buys.ToList<dynamic>();
+                    Orders.Buys = buys;
+                }
+
+
+                var mySells = ((JArray)orders.sells)
+                  .Where(jtoken => jtoken["tokenGive"] != null && jtoken["tokenGive"].ToString() == Config.Token)
+                  .Select(jtoken => Order.FromJson(jtoken))
+                  .ToList();
+
+                if (mySells != null && mySells.Count() > 0)
+                {
+                    MyOrders.Sells = mySells;
+                }
+
+                var myBuys = ((JArray)orders.buys)
+                  .Where(jtoken => jtoken["tokenGive"] != null && jtoken["tokenGive"].ToString() == Config.Token)
+                  .Select(jtoken => Order.FromJson(jtoken))
+                  .ToList();
+
+                if (myBuys != null && myBuys.Count > 0)
+                {
+                    MyOrders.Buys = myBuys.ToList<Order>();
                 }
             }
-
-            // TODO: update MyOrders
         }
 
         private void UpdateTrades(dynamic trades)
@@ -341,14 +355,23 @@ namespace EhterDelta.Bots.Dontnet
             }
         }
 
-        public EtherDeltaConfiguration Config { get; }
-        public Web3 Web3 { get; }
-        public Contract EtherDeltaContract { get; }
-        public Contract EthContract { get; }
-        public Orders Orders { get; set; }
-        public Orders MyOrders { get; set; }
-        public dynamic Trades { get; set; }
-        public List<dynamic> MyTrades { get; set; }
-        public dynamic Market { get; private set; }
+
+        private void Log(string message)
+        {
+            if (logger != null)
+            {
+                logger.Log(message);
+            }
+        }
+
+        private void InitSocket()
+        {
+            socket = new WebSocket(Config.SocketUrl);
+            socket.Opened += SocketOpened;
+            socket.Error += SocketError;
+            socket.Closed += SocketClosed;
+            socket.MessageReceived += SocketMessageReceived;
+            socket.OpenAsync().Wait();
+        }
     }
 }

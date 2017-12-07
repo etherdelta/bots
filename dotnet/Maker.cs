@@ -20,22 +20,21 @@ namespace EhterDelta.Bots.Dontnet
                 throw new Exception("Market is not two-sided, cannot calculate mid-market");
             }
 
-            var bestBuy = decimal.Parse(Service.Orders.Buys[0].price);
+            var bestBuy = Service.Orders.Buys[0].Price;
             var bestSell = Service.Orders.Sells[0].Price;
 
             // Make sure we have a reliable mid market
-            if (Math.Abs((bestBuy - bestSell) / (bestBuy + bestSell) / 2.0) > 0.05)
+            if (Math.Abs((bestBuy - bestSell) / (bestBuy + bestSell) / 2) > 0.05m)
             {
                 throw new Exception("Market is too wide, will not place orders");
             }
 
-            var midMarket = (bestBuy + bestSell) / 2.0;
-
+            var midMarket = (bestBuy + bestSell) / 2;
             var orders = new List<Task>();
 
             for (var i = 0; i < sellOrdersToPlace; i += 1)
             {
-                var price = midMarket + ((i + 1) * midMarket * 0.05);
+                var price = midMarket + ((i + 1) * midMarket * 0.05m);
                 var amount = Service.ToEth(sellVolumeToPlace / sellOrdersToPlace, Service.Config.UnitDecimals);
                 Console.WriteLine($"Sell { amount.ToString("N3")} @ { price.ToString("N9")}");
                 try
@@ -50,9 +49,9 @@ namespace EhterDelta.Bots.Dontnet
             }
             for (var i = 0; i < buyOrdersToPlace; i += 1)
             {
-                var price = midMarket - ((i + 1) * midMarket * 0.05);
+                var price = midMarket - ((i + 1) * midMarket * 0.05m);
                 var amount = Service.ToEth(buyVolumeToPlace / price / buyOrdersToPlace, Service.Config.UnitDecimals);
-                Console.WriteLine($"Buy { amount.ToString("N3")} @ { price.toFixed(9)}");
+                Console.WriteLine($"Buy { amount.ToString("N3")} @ { price.ToString("N9")}");
                 try
                 {
                     var order = Service.CreateOrder(OrderType.Buy, expires, price, amount);

@@ -99,8 +99,8 @@ namespace EhterDelta.Bots.Dontnet
                 trades = ((JArray)trades).Take(numTrades).ToArray();
                 foreach (var trade in trades)
                 {
-                    var tradePrice = (double)((JValue)trade.price);
-                    var tradeAmount = (double)((JValue)trade.amount);
+                    var tradePrice = (decimal)((JValue)trade.price);
+                    var tradeAmount = (decimal)((JValue)trade.amount);
                     var tradeDate = (DateTime)((JValue)trade.date);
 
                     Console.ForegroundColor = trade.side == "sell" ? ConsoleColor.Red : ConsoleColor.Green;
@@ -119,7 +119,7 @@ namespace EhterDelta.Bots.Dontnet
             int ordersPerSide = 10;
 
             List<Order> sells = Service.Orders != null ? Service.Orders.Sells : null;
-            List<dynamic> buys = Service.Orders != null ? Service.Orders.Buys : null;
+            List<Order> buys = Service.Orders != null ? Service.Orders.Buys : null;
 
             if (sells == null || buys == null)
             {
@@ -131,16 +131,16 @@ namespace EhterDelta.Bots.Dontnet
             buys = buys.Take(ordersPerSide).ToList();
 
             Console.ForegroundColor = ConsoleColor.Red;
-            foreach (var item in sells)
+            foreach (var order in sells)
             {
-                Console.WriteLine(FormatOrder(item));
+                Console.WriteLine(FormatOrder(order));
             }
             Console.ResetColor();
 
             if (buys.Count > 0 && sells.Count > 0)
             {
-                var salesPrice = (double)(sells.Last().Price);
-                var buysPrice = (double)(buys[0]["price"]);
+                var salesPrice = sells.Last().Price;
+                var buysPrice = buys.Last().Price;
                 Console.WriteLine($"---- Spread ({(salesPrice - buysPrice).ToString("N9")}) ----");
             }
             else
@@ -152,9 +152,9 @@ namespace EhterDelta.Bots.Dontnet
 
             if (buys != null)
             {
-                foreach (var item in buys)
+                foreach (var order in buys)
                 {
-                    Console.WriteLine(FormatItem(item));
+                    Console.WriteLine(FormatOrder(order));
                 }
             }
 
@@ -171,16 +171,10 @@ namespace EhterDelta.Bots.Dontnet
             Console.WriteLine($"Wallet token balance:       {WalletToken}");
             Console.WriteLine($"EtherDelta token balance:   {EtherDeltaToken}");
         }
-        private string FormatItem(dynamic item)
-        {
-            var price = (double)item.price;
-            item.ethAvailableVolume = (double)item.ethAvailableVolume;
-            return $"{price.ToString("N9")} {item.ethAvailableVolume.ToString("N3"),20}";
-        }
 
-        private string FormatOrder(Order item)
+        private string FormatOrder(Order order)
         {
-            return $"{item.Price.ToString("N9")} {item.EthAvailableVolume.ToString("N3"),20}";
+            return $"{order.Price.ToString("N9")} {order.EthAvailableVolume.ToString("N3"),20}";
         }
 
         private async Task GetMarket()
