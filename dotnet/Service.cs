@@ -20,9 +20,9 @@ namespace EhterDelta.Bots.Dontnet
     {
         private const string ZeroToken = "0x0000000000000000000000000000000000000000";
         private WebSocket socket;
-        const int SocketMessageTimeout = 20000;
+        const int socketTimeout = 20000;
         private ILogger logger;
-
+        private bool gotMarket = false;
 
         public Service(EtherDeltaConfiguration config, ILogger configLogger)
         {
@@ -40,6 +40,8 @@ namespace EhterDelta.Bots.Dontnet
                 Sells = new List<Order>(),
                 Buys = new List<Order>()
             };
+            Trades = new List<Trade>();
+            MyTrades = new List<Trade>();
 
             Config = config;
             Web3 = new Web3(config.Provider);
@@ -61,9 +63,8 @@ namespace EhterDelta.Bots.Dontnet
         public Contract EthContract { get; }
         public Orders Orders { get; set; }
         public Orders MyOrders { get; set; }
-        public dynamic Trades { get; set; }
-        public List<dynamic> MyTrades { get; set; }
-        public dynamic Market { get; private set; }
+        public IEnumerable<Trade> Trades { get; set; }
+        public IEnumerable<dynamic> MyTrades { get; set; }
 
         internal async Task<TransactionReceipt> TakeOrder(Order order, decimal fraction)
         {
@@ -169,7 +170,13 @@ namespace EhterDelta.Bots.Dontnet
                 case "market":
                     UpdateOrders(message.Data.orders);
                     UpdateTrades(message.Data.trades);
-                    Market = message.Data;
+                    gotMarket = true;
+                    break;
+                case "trades":
+                    UpdateTrades(message.Data);
+                    break;
+                case "orders":
+                    UpdateOrders(message.Data);
                     break;
                 default:
                     break;
@@ -260,7 +267,7 @@ namespace EhterDelta.Bots.Dontnet
         public async Task WaitForMarket()
         {
             Log("Wait for Market");
-            Market = null;
+            gotMarket = false;
             socket.Send(new Message
             {
                 Event = "getMarket",
@@ -271,88 +278,77 @@ namespace EhterDelta.Bots.Dontnet
                 }
             }.ToString());
 
-            var gotMarket = Task.Run(() =>
+            var gotMarketTask = Task.Run(() =>
             {
-                while (Market == null)
+                while (!gotMarket)
                 {
                     Task.Delay(1000).Wait();
                 }
             });
 
-            var completed = await Task.WhenAny(gotMarket, Task.Delay(SocketMessageTimeout));
+            var completed = await Task.WhenAny(gotMarketTask, Task.Delay(socketTimeout));
             Log("Market Completed ...");
 
-            if (!gotMarket.IsCompletedSuccessfully)
+            if (!gotMarketTask.IsCompletedSuccessfully)
             {
                 throw new TimeoutException("Get Market timeout");
             }
         }
 
-        private void UpdateOrders(dynamic orders)
+        private void UpdateOrders(dynamic ordersObj)
         {
             var minOrderSize = 0.001m;
-
+            var orders = ordersObj as JObject;
             if (orders == null)
             {
                 return;
             }
 
-            if (orders.GetType() == typeof(JObject))
+            var sells = ((JArray)orders["sells"])
+                .Where(jtoken =>
+                    jtoken["tokenGive"] != null && jtoken["tokenGive"].ToString() == Config.Token &&
+                    jtoken["ethAvailableVolumeBase"] != null && jtoken["ethAvailableVolumeBase"].ToObject<decimal>() > minOrderSize &&
+                    (jtoken["deleted"] == null || jtoken["deleted"].ToObject<bool>() == false)
+                )
+              .Select(jtoken => Order.FromJson(jtoken));
+
+            if (sells != null && sells.Count() > 0)
             {
-                var sells = ((JArray)orders.sells)
-                  .Where(jtoken => jtoken["tokenGive"] != null && jtoken["tokenGive"].ToString() == Config.Token)
-                  .Select(jtoken => Order.FromJson(jtoken))
-                  .ToList();
+                Log($"Got {sells.Count()} sells");
+                Orders.Sells = Orders.Sells.Union(sells);
+                MyOrders.Sells = MyOrders.Sells.Union(sells.Where(s => s.User == Config.User));
+            }
 
-                if (sells != null && sells.Count() > 0)
-                {
-                    Orders.Sells = sells;
-                }
+            var buys = ((JArray)orders["buys"])
+                .Where(jtoken =>
+                    jtoken["tokenGet"] != null && jtoken["tokenGet"].ToString() == Config.Token &&
+                    jtoken["ethAvailableVolumeBase"] != null && jtoken["ethAvailableVolumeBase"].ToObject<decimal>() > minOrderSize &&
+                    (jtoken["deleted"] == null || jtoken["deleted"].ToObject<bool>() == false)
+                )
+              .Select(jtoken => Order.FromJson(jtoken));
 
-                var buys = ((JArray)orders.buys)
-                    .Where(jtoken => jtoken["tokenGet"] != null && jtoken["tokenGet"].ToString() == Config.Token)
-                    .Select(jtoken => Order.FromJson(jtoken))
-                    .ToList();
-
-                if (buys != null && buys.Count() > 0)
-                {
-                    Orders.Buys = buys;
-                }
-
-
-                var mySells = ((JArray)orders.sells)
-                  .Where(jtoken => jtoken["tokenGive"] != null && jtoken["tokenGive"].ToString() == Config.Token)
-                  .Select(jtoken => Order.FromJson(jtoken))
-                  .ToList();
-
-                if (mySells != null && mySells.Count() > 0)
-                {
-                    MyOrders.Sells = mySells;
-                }
-
-                var myBuys = ((JArray)orders.buys)
-                  .Where(jtoken => jtoken["tokenGive"] != null && jtoken["tokenGive"].ToString() == Config.Token)
-                  .Select(jtoken => Order.FromJson(jtoken))
-                  .ToList();
-
-                if (myBuys != null && myBuys.Count > 0)
-                {
-                    MyOrders.Buys = myBuys.ToList<Order>();
-                }
+            if (buys != null && buys.Count() > 0)
+            {
+                Log($"Got {buys.Count()} buys");
+                Orders.Buys = Orders.Buys.Union(buys);
+                MyOrders.Buys = MyOrders.Buys.Union(buys.Where(s => s.User == Config.User));
             }
         }
 
-        private void UpdateTrades(dynamic trades)
+        private void UpdateTrades(JArray trades)
         {
-            if (trades == null)
-            {
-                return;
-            }
 
-            if (trades.GetType() == typeof(JArray))
-            {
-                Trades = trades;
-            }
+            Log($"Got {trades.Count} trades");
+            var tradesArray = trades
+                .Where(jtoken =>
+                    jtoken["txHash"] != null &&
+                    jtoken["amount"] != null && jtoken["amount"].ToObject<decimal>() > 0m
+                )
+              .Select(jtoken => Trade.FromJson(jtoken));
+
+            Log($"Parsed {tradesArray.Count()} trades");
+            Trades = Trades.Union(tradesArray);
+            Log($"total {Trades.Count()} trades");
         }
 
 
@@ -374,4 +370,5 @@ namespace EhterDelta.Bots.Dontnet
             socket.OpenAsync().Wait();
         }
     }
+
 }

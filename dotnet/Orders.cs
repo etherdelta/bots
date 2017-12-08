@@ -6,10 +6,10 @@ using System;
 
 namespace EhterDelta.Bots.Dontnet
 {
-    public class Orders
+    public class Orders : Object
     {
-        public List<Order> Sells { get; set; }
-        public List<Order> Buys { get; set; }
+        public IEnumerable<Order> Sells { get; set; }
+        public IEnumerable<Order> Buys { get; set; }
     }
 
     public class Order
@@ -49,6 +49,20 @@ namespace EhterDelta.Bots.Dontnet
             }
 
             return order;
+        }
+
+        public bool Equals(Order other)
+        {
+            if (other == null)
+            {
+                return false;
+            }
+            return other.Id == Id;
+        }
+
+        public override int GetHashCode()
+        {
+            return Id.GetHashCode();
         }
     }
 }

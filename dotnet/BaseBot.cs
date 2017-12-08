@@ -92,19 +92,13 @@ namespace EhterDelta.Bots.Dontnet
             Console.WriteLine("====================================");
             int numTrades = 10;
 
-            var trades = Service.Trades;
-
-            if (trades != null && trades.GetType() == typeof(JArray))
+            if (Service.Trades != null)
             {
-                trades = ((JArray)trades).Take(numTrades).ToArray();
+                var trades = Service.Trades.Take(numTrades);
                 foreach (var trade in trades)
                 {
-                    var tradePrice = (decimal)((JValue)trade.price);
-                    var tradeAmount = (decimal)((JValue)trade.amount);
-                    var tradeDate = (DateTime)((JValue)trade.date);
-
-                    Console.ForegroundColor = trade.side == "sell" ? ConsoleColor.Red : ConsoleColor.Green;
-                    Console.WriteLine($"{tradeDate.ToLocalTime()} {trade.side} {tradeAmount.ToString("N3")} @ {tradePrice.ToString("N9")}");
+                    Console.ForegroundColor = trade.Side == "sell" ? ConsoleColor.Red : ConsoleColor.Green;
+                    Console.WriteLine($"{trade.Date.ToLocalTime()} {trade.Side} {trade.Amount.ToString("N3")} @ {trade.Price.ToString("N9")}");
                 }
             }
 
@@ -118,17 +112,14 @@ namespace EhterDelta.Bots.Dontnet
             Console.WriteLine("====================================");
             int ordersPerSide = 10;
 
-            List<Order> sells = Service.Orders != null ? Service.Orders.Sells : null;
-            List<Order> buys = Service.Orders != null ? Service.Orders.Buys : null;
-
-            if (sells == null || buys == null)
+            if (Service.Orders.Sells.Count() == 0 && Service.Orders.Buys.Count() == 0)
             {
                 Console.WriteLine("No sell or buy orders");
                 return;
             }
 
-            sells = sells.Take(ordersPerSide).Reverse().ToList();
-            buys = buys.Take(ordersPerSide).ToList();
+            var sells = Service.Orders.Sells.Take(ordersPerSide).Reverse();
+            var buys = Service.Orders.Buys.Take(ordersPerSide);
 
             Console.ForegroundColor = ConsoleColor.Red;
             foreach (var order in sells)
@@ -137,7 +128,7 @@ namespace EhterDelta.Bots.Dontnet
             }
             Console.ResetColor();
 
-            if (buys.Count > 0 && sells.Count > 0)
+            if (buys.Count() > 0 && sells.Count() > 0)
             {
                 var salesPrice = sells.Last().Price;
                 var buysPrice = buys.Last().Price;

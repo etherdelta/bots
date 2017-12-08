@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
@@ -10,18 +11,18 @@ namespace EhterDelta.Bots.Dontnet
         {
             var ordersPerSide = 1;
             var expires = Service.GetBlockNumber().Result + 10;
-            var buyOrdersToPlace = ordersPerSide - Service.MyOrders.Buys.Count;
-            var sellOrdersToPlace = ordersPerSide - Service.MyOrders.Sells.Count;
+            var buyOrdersToPlace = ordersPerSide - Service.MyOrders.Buys.Count();
+            var sellOrdersToPlace = ordersPerSide - Service.MyOrders.Sells.Count();
             var buyVolumeToPlace = EtherDeltaETH;
             var sellVolumeToPlace = EtherDeltaToken;
 
-            if (Service.Orders.Buys.Count <= 0 || Service.Orders.Sells.Count <= 0)
+            if (Service.Orders.Buys.Count() == 0 || Service.Orders.Sells.Count() == 0)
             {
                 throw new Exception("Market is not two-sided, cannot calculate mid-market");
             }
 
-            var bestBuy = Service.Orders.Buys[0].Price;
-            var bestSell = Service.Orders.Sells[0].Price;
+            var bestBuy = Service.Orders.Buys.First().Price;
+            var bestSell = Service.Orders.Sells.First().Price;
 
             // Make sure we have a reliable mid market
             if (Math.Abs((bestBuy - bestSell) / (bestBuy + bestSell) / 2) > 0.05m)
