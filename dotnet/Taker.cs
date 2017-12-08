@@ -1,4 +1,5 @@
 using System;
+using Nethereum.Util;
 
 namespace EhterDelta.Bots.Dontnet
 {
@@ -16,7 +17,9 @@ namespace EhterDelta.Bots.Dontnet
                 var fraction = Math.Min(desiredAmountBase / order.EthAvailableVolumeBase, 1);
                 try
                 {
-                    Service.TakeOrder(order, fraction).Wait();
+                    var uc = new UnitConversion();
+                    var amount = order.AmountGet.Value * uc.ToWei(fraction);
+                    Service.TakeOrder(order, amount).Wait();
                 }
                 catch (Exception ex)
                 {

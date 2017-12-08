@@ -71,9 +71,31 @@ namespace EhterDelta.Bots.Dontnet
             }
 
 
-            // orders.ForEach(Service.PlaceOrder);
+            var orderTasks = new List<Task>();
+            orders.ForEach(order =>
+            {
+                orderTasks.Add(Service.TakeOrder(order, 1));
+            });
 
-            // Task.WhenAll(orders).Wait();
+
+            try
+            {
+                Task.WaitAll(orderTasks.ToArray());
+            }
+            catch (Exception ex)
+            {
+
+                Console.ForegroundColor = ConsoleColor.Red;
+                if (ex.InnerException != null)
+                {
+                    Console.WriteLine(ex.InnerException.Message);
+                }
+                else
+                {
+                    Console.WriteLine(ex.Message);
+                }
+                Console.ResetColor();
+            }
 
             Console.WriteLine("Done");
         }

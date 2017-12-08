@@ -14,6 +14,10 @@ using Nethereum.ABI;
 using Nethereum.Hex.HexConvertors.Extensions;
 using Nethereum.RPC.Eth.DTOs;
 using Nethereum.Hex.HexTypes;
+using Nethereum.ABI.FunctionEncoding;
+using Nethereum.ABI.Model;
+using Nethereum.Signer;
+using Nethereum.ABI.Encoders;
 
 namespace EhterDelta.Bots.Dontnet
 {
@@ -67,11 +71,8 @@ namespace EhterDelta.Bots.Dontnet
         public IEnumerable<Trade> Trades { get; set; }
         public IEnumerable<dynamic> MyTrades { get; set; }
 
-        internal async Task<TransactionReceipt> TakeOrder(Order order, decimal fraction)
+        internal async Task<TransactionReceipt> TakeOrder(Order order, BigInteger amount)
         {
-            var uc = new UnitConversion();
-            var amount = order.AmountGet.Value * uc.ToWei(fraction);
-
             var fnTest = EtherDeltaContract.GetFunction("testTrade");
             var willPass = await fnTest.CallAsync<bool>(
                 order.TokenGet,
@@ -109,6 +110,8 @@ namespace EhterDelta.Bots.Dontnet
                 amount
             );
 
+            var gas = fnTrade.EstimateGasAsync();
+
             var txCount = await Web3.Eth.Transactions.GetTransactionCount.SendRequestAsync(Config.User);
             var encoded = Web3.OfflineTransactionSigner.SignTransaction(Config.PrivateKey, Config.AddressEtherDelta, amount,
                 txCount, Config.GasPrice, Config.GasLimit, data);
@@ -135,7 +138,8 @@ namespace EhterDelta.Bots.Dontnet
 
         internal Order CreateOrder(OrderType orderType, BigInteger expires, decimal price, BigInteger amount)
         {
-            var amountBigNum = amount;
+            var uc = new UnitConversion();
+            var amountBigNum = orderType == OrderType.Buy ? amount / uc.ToWei(price) : amount;
             var amountBaseBigNum = amount * new BigInteger(price);
             var contractAddr = Config.AddressEtherDelta;
             var tokenGet = orderType == OrderType.Buy ? Config.Token : ZeroToken;
@@ -144,33 +148,33 @@ namespace EhterDelta.Bots.Dontnet
             var amountGive = orderType == OrderType.Sell ? amountBigNum : amountBaseBigNum;
             var orderNonce = new Random().Next();
 
-            var fnTrade = EtherDeltaContract.GetFunction("trade");
+            var plainData = new object[] {
+                Config.AddressEtherDelta,
+                tokenGive,
+                amountGet,
+                tokenGive,
+                amountGive,
+                expires,
+                orderNonce
+            };
 
-            // var data = fnTrade.GetData(
-            //     order.TokenGet,
-            //     order.AmountGet.Value,
-            //     order.TokenGive,
-            //     order.AmountGive.Value,
-            //     order.Expires,
-            //     order.Nonce,
-            //     order.User,
-            //     order.V,
-            //     order.R.HexToByteArray(),
-            //     order.S.HexToByteArray(),
-            //     amount
-            // );
+            var prms = new Parameter[] {
+                new Parameter("address",1),
+                new Parameter("address",1),
+                new Parameter("uint256",1),
+                new Parameter("address",1),
+                new Parameter("uint256",1),
+                new Parameter("uint256",1),
+                new Parameter("uint256",1),
+            };
 
-            // var gp = uc.ToWei(32, UnitConversion.EthUnit.Gwei);
+            var pe = new ParametersEncoder();
+            var data = pe.EncodeParameters(prms, plainData);
 
+            var ms = new MessageSigner();
+            var signature = ms.HashAndSign(data, Config.PrivateKey);
 
-            // var txCount = await Web3.Eth.Transactions.GetTransactionCount.SendRequestAsync(Config.User);
-            // var encoded = Web3.OfflineTransactionSigner.SignTransaction(Config.PrivateKey, Config.AddressEtherDelta, 10,
-            //     txCount.Value);
-
-            // var txId = await Web3.Eth.Transactions.SendRawTransaction.SendRequestAsync(encoded.EnsureHexPrefix());
-            // var receipt = await Web3.Eth.Transactions.GetTransactionReceipt.SendRequestAsync(txId);
-
-            dynamic sig = new { v = 1, r = "234", s = "342" };
+            var ethEcdsa = MessageSigner.ExtractEcdsaSignature(signature);
 
             var order = new Order
             {
@@ -182,9 +186,9 @@ namespace EhterDelta.Bots.Dontnet
                 Expires = expires,
                 Nonce = orderNonce,
                 User = Config.User,
-                V = sig.v,
-                R = sig.r,
-                S = sig.s,
+                V = ethEcdsa.V,
+                R = ethEcdsa.R.ToHex(true),
+                S = ethEcdsa.S.ToHex(true),
             };
 
             return order;
