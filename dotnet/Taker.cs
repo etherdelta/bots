@@ -20,13 +20,19 @@ namespace EhterDelta.Bots.Dontnet
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine(ex.Message);
+                    if (ex.InnerException != null)
+                    {
+                        Console.WriteLine(ex.InnerException.Message);
+                    }
+                    else
+                    {
+                        Console.WriteLine(ex.Message);
+                    }
                 }
             }
             else
             {
                 Console.WriteLine("No Available order");
-                Console.WriteLine(Service.Orders);
             }
 
             Console.WriteLine();

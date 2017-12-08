@@ -13,6 +13,7 @@ using System.Text;
 using Nethereum.ABI;
 using Nethereum.Hex.HexConvertors.Extensions;
 using Nethereum.RPC.Eth.DTOs;
+using Nethereum.Hex.HexTypes;
 
 namespace EhterDelta.Bots.Dontnet
 {
@@ -68,11 +69,12 @@ namespace EhterDelta.Bots.Dontnet
 
         internal async Task<TransactionReceipt> TakeOrder(Order order, decimal fraction)
         {
-            var amount = order.AmountGet * new BigInteger(fraction);
+            var uc = new UnitConversion();
+            var amount = order.AmountGet.Value * uc.ToWei(fraction);
 
-            var txCount = await Web3.Eth.Transactions.GetTransactionCount.SendRequestAsync(Config.User);
+            Console.WriteLine(order.Raw);
+
             var fnTest = EtherDeltaContract.GetFunction("testTrade");
-
             var willPass = await fnTest.CallAsync<bool>(
                 order.TokenGet,
                 order.AmountGet.Value,
@@ -88,11 +90,10 @@ namespace EhterDelta.Bots.Dontnet
                 Config.User
             );
 
-
             if (!willPass)
             {
                 Log("Order will fail");
-                throw new Exception("Order will fail");
+                //throw new Exception("Order will fail");
             }
 
             var fnTrade = EtherDeltaContract.GetFunction("trade");
@@ -110,8 +111,12 @@ namespace EhterDelta.Bots.Dontnet
                 amount
             );
 
-            var encoded = Web3.OfflineTransactionSigner.SignTransaction(Config.PrivateKey, Config.AddressEtherDelta, amount,
-                txCount, Config.GasPrice, Config.GasLimit, data);
+            var gp = uc.ToWei(32, UnitConversion.EthUnit.Gwei);
+
+
+            var txCount = await Web3.Eth.Transactions.GetTransactionCount.SendRequestAsync(Config.User);
+            var encoded = Web3.OfflineTransactionSigner.SignTransaction(Config.PrivateKey, Config.AddressEtherDelta, 10,
+                txCount.Value);
 
             var txId = await Web3.Eth.Transactions.SendRawTransaction.SendRequestAsync(encoded.EnsureHexPrefix());
             var receipt = await Web3.Eth.Transactions.GetTransactionReceipt.SendRequestAsync(txId);

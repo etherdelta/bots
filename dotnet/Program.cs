@@ -2,6 +2,7 @@
 
 using System;
 using System.Configuration;
+using System.Numerics;
 
 namespace EhterDelta.Bots.Dontnet
 {
@@ -27,6 +28,8 @@ namespace EhterDelta.Bots.Dontnet
                 User = ConfigurationManager.AppSettings["User"],
                 PrivateKey = ConfigurationManager.AppSettings["PrivateKey"],
                 UnitDecimals = int.Parse(ConfigurationManager.AppSettings["UnitDecimals"]),
+                GasPrice = new BigInteger(UInt64.Parse(ConfigurationManager.AppSettings["GasPrice"])),
+                GasLimit = new BigInteger(UInt64.Parse(ConfigurationManager.AppSettings["GasLimit"]))
             };
 
             ILogger logger = null;

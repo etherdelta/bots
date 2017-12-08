@@ -34,6 +34,8 @@ namespace EhterDelta.Bots.Dontnet
         public string R { get; internal set; }
         public string S { get; internal set; }
 
+        public string Raw { get; internal set; }
+
         internal static Order FromJson(JToken jtoken)
         {
             var order = jtoken.ToObject<Order>();
@@ -47,6 +49,8 @@ namespace EhterDelta.Bots.Dontnet
             {
                 Console.WriteLine(ex.Message);
             }
+
+            order.Raw = jtoken.ToString();
 
             return order;
         }

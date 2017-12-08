@@ -1,3 +1,5 @@
+using System.Numerics;
+
 namespace EhterDelta.Bots.Dontnet
 {
     public class EtherDeltaConfiguration
@@ -13,7 +15,7 @@ namespace EhterDelta.Bots.Dontnet
         public string PrivateKey { get; internal set; }
 
         public int UnitDecimals { get; internal set; }
-        public int GasLimit { get; internal set; }
-        public uint GasPrice { get; internal set; }
+        public BigInteger GasLimit { get; internal set; }
+        public BigInteger GasPrice { get; internal set; }
     }
 }

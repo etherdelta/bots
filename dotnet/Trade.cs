@@ -38,6 +38,7 @@ namespace EhterDelta.Bots.Dontnet
             }
             return other.TxHash == TxHash;
         }
+
         public override int GetHashCode()
         {
             return TxHash.GetHashCode();
