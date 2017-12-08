@@ -3,6 +3,8 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using System.Numerics;
+using Nethereum.Util;
 
 namespace EhterDelta.Bots.Dontnet
 {
@@ -10,10 +12,10 @@ namespace EhterDelta.Bots.Dontnet
     {
         protected Service Service { get; set; }
 
-        protected decimal EtherDeltaETH { get; set; }
-        protected decimal WalletETH { get; set; }
-        protected decimal EtherDeltaToken { get; set; }
-        protected decimal WalletToken { get; set; }
+        protected BigInteger EtherDeltaETH { get; set; }
+        protected BigInteger WalletETH { get; set; }
+        protected BigInteger EtherDeltaToken { get; set; }
+        protected BigInteger WalletToken { get; set; }
 
         public BaseBot(EtherDeltaConfiguration config, ILogger logger = null)
         {
@@ -38,9 +40,9 @@ namespace EhterDelta.Bots.Dontnet
             Console.WriteLine();
         }
 
-        private async Task<decimal> GetEtherDeltaBalance(string token, string user)
+        private async Task<BigInteger> GetEtherDeltaBalance(string token, string user)
         {
-            decimal balance = 0;
+            BigInteger balance = 0;
             try
             {
                 balance = await Service.GetEtherDeltaBalance(token, user);
@@ -61,9 +63,9 @@ namespace EhterDelta.Bots.Dontnet
             return balance;
         }
 
-        private async Task<decimal> GetBalanceAsync(string token, string user)
+        private async Task<BigInteger> GetBalanceAsync(string token, string user)
         {
-            decimal balance = 0;
+            BigInteger balance = 0;
 
             try
             {
@@ -154,13 +156,14 @@ namespace EhterDelta.Bots.Dontnet
 
         private void PrintWallet()
         {
+            var uc = new UnitConversion();
             Console.WriteLine();
             Console.WriteLine("Account balances");
             Console.WriteLine("====================================");
-            Console.WriteLine($"Wallet ETH balance:         {WalletETH}");
-            Console.WriteLine($"EtherDelta ETH balance:     {EtherDeltaETH}");
-            Console.WriteLine($"Wallet token balance:       {WalletToken}");
-            Console.WriteLine($"EtherDelta token balance:   {EtherDeltaToken}");
+            Console.WriteLine($"Wallet ETH balance:         {uc.FromWei(WalletETH).ToString("N18")}");
+            Console.WriteLine($"EtherDelta ETH balance:     {uc.FromWei(EtherDeltaETH).ToString("N18")}");
+            Console.WriteLine($"Wallet token balance:       {uc.FromWei(WalletToken).ToString("N18")}");
+            Console.WriteLine($"EtherDelta token balance:   {uc.FromWei(EtherDeltaToken).ToString("N18")}");
         }
 
         private string FormatOrder(Order order)

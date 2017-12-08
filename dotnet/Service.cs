@@ -72,8 +72,6 @@ namespace EhterDelta.Bots.Dontnet
             var uc = new UnitConversion();
             var amount = order.AmountGet.Value * uc.ToWei(fraction);
 
-            Console.WriteLine(order.Raw);
-
             var fnTest = EtherDeltaContract.GetFunction("testTrade");
             var willPass = await fnTest.CallAsync<bool>(
                 order.TokenGet,
@@ -93,7 +91,7 @@ namespace EhterDelta.Bots.Dontnet
             if (!willPass)
             {
                 Log("Order will fail");
-                //throw new Exception("Order will fail");
+                throw new Exception("Order will fail");
             }
 
             var fnTrade = EtherDeltaContract.GetFunction("trade");
@@ -111,12 +109,9 @@ namespace EhterDelta.Bots.Dontnet
                 amount
             );
 
-            var gp = uc.ToWei(32, UnitConversion.EthUnit.Gwei);
-
-
             var txCount = await Web3.Eth.Transactions.GetTransactionCount.SendRequestAsync(Config.User);
-            var encoded = Web3.OfflineTransactionSigner.SignTransaction(Config.PrivateKey, Config.AddressEtherDelta, 10,
-                txCount.Value);
+            var encoded = Web3.OfflineTransactionSigner.SignTransaction(Config.PrivateKey, Config.AddressEtherDelta, amount,
+                txCount, Config.GasPrice, Config.GasLimit, data);
 
             var txId = await Web3.Eth.Transactions.SendRawTransaction.SendRequestAsync(encoded.EnsureHexPrefix());
             var receipt = await Web3.Eth.Transactions.GetTransactionReceipt.SendRequestAsync(txId);
@@ -128,34 +123,71 @@ namespace EhterDelta.Bots.Dontnet
             return Orders.Sells.FirstOrDefault();
         }
 
+        internal Order GetBestAvailableBuy()
+        {
+            return Orders.Buys.FirstOrDefault();
+        }
+
         internal async Task<BigInteger> GetBlockNumber()
         {
             return await Web3.Eth.Blocks.GetBlockNumber.SendRequestAsync();
         }
 
-        internal async Task CreateOrder(OrderType orderType, BigInteger expires, decimal price, BigInteger amount)
+        internal Order CreateOrder(OrderType orderType, BigInteger expires, decimal price, BigInteger amount)
         {
-            await Task.Delay(1);
-
             var amountBigNum = amount;
             var amountBaseBigNum = amount * new BigInteger(price);
             var contractAddr = Config.AddressEtherDelta;
             var tokenGet = orderType == OrderType.Buy ? Config.Token : ZeroToken;
             var tokenGive = orderType == OrderType.Sell ? Config.Token : ZeroToken;
-            var amountGet = orderType == OrderType.Buy ? toWei(amountBigNum, Config.UnitDecimals) : toWei(amountBaseBigNum, Config.UnitDecimals);
-            var amountGive = orderType == OrderType.Sell ? toWei(amountBigNum, Config.UnitDecimals) : toWei(amountBaseBigNum, Config.UnitDecimals);
+            var amountGet = orderType == OrderType.Buy ? amountBigNum : amountBaseBigNum;
+            var amountGive = orderType == OrderType.Sell ? amountBigNum : amountBaseBigNum;
             var orderNonce = new Random().Next();
 
-        }
+            var fnTrade = EtherDeltaContract.GetFunction("trade");
 
-        internal BigInteger ToEth(dynamic dynamic, object decimals)
-        {
-            throw new NotImplementedException();
-        }
+            // var data = fnTrade.GetData(
+            //     order.TokenGet,
+            //     order.AmountGet.Value,
+            //     order.TokenGive,
+            //     order.AmountGive.Value,
+            //     order.Expires,
+            //     order.Nonce,
+            //     order.User,
+            //     order.V,
+            //     order.R.HexToByteArray(),
+            //     order.S.HexToByteArray(),
+            //     amount
+            // );
 
-        private string toWei(BigInteger amountBigNum, int unitDecimals)
-        {
-            throw new NotImplementedException();
+            // var gp = uc.ToWei(32, UnitConversion.EthUnit.Gwei);
+
+
+            // var txCount = await Web3.Eth.Transactions.GetTransactionCount.SendRequestAsync(Config.User);
+            // var encoded = Web3.OfflineTransactionSigner.SignTransaction(Config.PrivateKey, Config.AddressEtherDelta, 10,
+            //     txCount.Value);
+
+            // var txId = await Web3.Eth.Transactions.SendRawTransaction.SendRequestAsync(encoded.EnsureHexPrefix());
+            // var receipt = await Web3.Eth.Transactions.GetTransactionReceipt.SendRequestAsync(txId);
+
+            dynamic sig = new { v = 1, r = "234", s = "342" };
+
+            var order = new Order
+            {
+                AmountGet = new HexBigInteger(amountGet),
+                AmountGive = new HexBigInteger(amountGive),
+                TokenGet = tokenGet,
+                TokenGive = tokenGive,
+                ContractAddr = contractAddr,
+                Expires = expires,
+                Nonce = orderNonce,
+                User = Config.User,
+                V = sig.v,
+                R = sig.r,
+                S = sig.s,
+            };
+
+            return order;
         }
 
         internal void Close()
@@ -205,9 +237,8 @@ namespace EhterDelta.Bots.Dontnet
             }
         }
 
-        internal async Task<decimal> GetBalance(string token, string user)
+        internal async Task<BigInteger> GetBalance(string token, string user)
         {
-            var unitConversion = new UnitConversion();
             BigInteger balance = 0;
             user = Web3.ToChecksumAddress(user);
 
@@ -231,12 +262,11 @@ namespace EhterDelta.Bots.Dontnet
                 Log(ex.Message);
             }
 
-            return unitConversion.FromWei(balance, Config.UnitDecimals);
+            return balance;
         }
 
-        internal async Task<decimal> GetEtherDeltaBalance(string token, string user)
+        internal async Task<BigInteger> GetEtherDeltaBalance(string token, string user)
         {
-            var unitConversion = new UnitConversion();
             BigInteger balance = 0;
 
             try
@@ -255,7 +285,7 @@ namespace EhterDelta.Bots.Dontnet
                 Log(ex.Message);
             }
 
-            return unitConversion.FromWei(balance, Config.UnitDecimals);
+            return balance;
         }
 
         private void SocketError(object sender, SuperSocket.ClientEngine.ErrorEventArgs e)
@@ -312,7 +342,7 @@ namespace EhterDelta.Bots.Dontnet
             var sells = ((JArray)orders["sells"])
                 .Where(jtoken =>
                     jtoken["tokenGive"] != null && jtoken["tokenGive"].ToString() == Config.Token &&
-                    jtoken["ethAvailableVolumeBase"] != null && jtoken["ethAvailableVolumeBase"].ToObject<decimal>() > minOrderSize &&
+                    //jtoken["ethAvailableVolumeBase"] != null && jtoken["ethAvailableVolumeBase"].ToObject<decimal>() > minOrderSize &&
                     (jtoken["deleted"] == null || jtoken["deleted"].ToObject<bool>() == false)
                 )
               .Select(jtoken => Order.FromJson(jtoken));
@@ -342,6 +372,10 @@ namespace EhterDelta.Bots.Dontnet
 
         private void UpdateTrades(JArray trades)
         {
+            if (trades == null)
+            {
+                return;
+            }
 
             Log($"Got {trades.Count} trades");
             var tradesArray = trades

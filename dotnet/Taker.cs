@@ -20,6 +20,7 @@ namespace EhterDelta.Bots.Dontnet
                 }
                 catch (Exception ex)
                 {
+                    Console.ForegroundColor = ConsoleColor.Red;
                     if (ex.InnerException != null)
                     {
                         Console.WriteLine(ex.InnerException.Message);
@@ -28,6 +29,7 @@ namespace EhterDelta.Bots.Dontnet
                     {
                         Console.WriteLine(ex.Message);
                     }
+                    Console.ResetColor();
                 }
             }
             else

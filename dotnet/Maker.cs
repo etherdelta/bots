@@ -1,4 +1,5 @@
 using System;
+using System.Numerics;
 using System.Linq;
 using System.Collections.Generic;
 using System.Threading.Tasks;
@@ -9,6 +10,9 @@ namespace EhterDelta.Bots.Dontnet
     {
         public Maker(EtherDeltaConfiguration config, ILogger logger = null) : base(config, logger)
         {
+
+            PrintMyOrders();
+
             var ordersPerSide = 1;
             var expires = Service.GetBlockNumber().Result + 10;
             var buyOrdersToPlace = ordersPerSide - Service.MyOrders.Buys.Count();
@@ -16,27 +20,29 @@ namespace EhterDelta.Bots.Dontnet
             var buyVolumeToPlace = EtherDeltaETH;
             var sellVolumeToPlace = EtherDeltaToken;
 
-            if (Service.Orders.Buys.Count() == 0 || Service.Orders.Sells.Count() == 0)
-            {
-                throw new Exception("Market is not two-sided, cannot calculate mid-market");
-            }
+            var bestBuy = Service.GetBestAvailableBuy();
+            var bestSell = Service.GetBestAvailableSell();
 
-            var bestBuy = Service.Orders.Buys.First().Price;
-            var bestSell = Service.Orders.Sells.First().Price;
+            if (bestBuy == null || bestSell == null)
+            {
+                Console.WriteLine("Market is not two-sided, cannot calculate mid-market");
+                return;
+            }
 
             // Make sure we have a reliable mid market
-            if (Math.Abs((bestBuy - bestSell) / (bestBuy + bestSell) / 2) > 0.05m)
+            if (Math.Abs((bestBuy.Price - bestSell.Price) / (bestBuy.Price + bestSell.Price) / 2) > 0.05m)
             {
-                throw new Exception("Market is too wide, will not place orders");
+                Console.WriteLine("Market is too wide, will not place orders");
+                return;
             }
 
-            var midMarket = (bestBuy + bestSell) / 2;
-            var orders = new List<Task>();
+            var midMarket = (bestBuy.Price + bestSell.Price) / 2;
+            var orders = new List<Order>();
 
             for (var i = 0; i < sellOrdersToPlace; i += 1)
             {
                 var price = midMarket + ((i + 1) * midMarket * 0.05m);
-                var amount = Service.ToEth(sellVolumeToPlace / sellOrdersToPlace, Service.Config.UnitDecimals);
+                var amount = sellVolumeToPlace / sellOrdersToPlace;
                 Console.WriteLine($"Sell { amount.ToString("N3")} @ { price.ToString("N9")}");
                 try
                 {
@@ -51,11 +57,11 @@ namespace EhterDelta.Bots.Dontnet
             for (var i = 0; i < buyOrdersToPlace; i += 1)
             {
                 var price = midMarket - ((i + 1) * midMarket * 0.05m);
-                var amount = Service.ToEth(buyVolumeToPlace / price / buyOrdersToPlace, Service.Config.UnitDecimals);
+                var amount = 0; //buyVolumeToPlace / price / buyOrdersToPlace;
                 Console.WriteLine($"Buy { amount.ToString("N3")} @ { price.ToString("N9")}");
                 try
                 {
-                    var order = Service.CreateOrder(OrderType.Buy, expires, price, amount);
+                    var order = Service.CreateOrder(OrderType.Buy, expires, price, new BigInteger(amount));
                     orders.Add(order);
                 }
                 catch (Exception ex)
@@ -64,9 +70,18 @@ namespace EhterDelta.Bots.Dontnet
                 }
             }
 
-            Task.WhenAll(orders).Wait();
+
+            // orders.ForEach(Service.PlaceOrder);
+
+            // Task.WhenAll(orders).Wait();
 
             Console.WriteLine("Done");
+        }
+
+        void PrintMyOrders()
+        {
+            Console.WriteLine($"My existing buy orders: {Service.MyOrders.Buys.Count()}");
+            Console.WriteLine($"My existing sell orders: {Service.MyOrders.Sells.Count()}");
         }
     }
 }

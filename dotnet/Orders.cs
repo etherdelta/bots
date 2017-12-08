@@ -33,7 +33,7 @@ namespace EhterDelta.Bots.Dontnet
         public int V { get; internal set; }
         public string R { get; internal set; }
         public string S { get; internal set; }
-
+        public string ContractAddr { get; internal set; }
         public string Raw { get; internal set; }
 
         internal static Order FromJson(JToken jtoken)
