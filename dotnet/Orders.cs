@@ -39,22 +39,21 @@ namespace EhterDelta.Bots.Dontnet
 
         internal static Order FromJson(JToken jtoken)
         {
+            Order order = null;
             try
             {
-                var order = jtoken.ToObject<Order>();
+                order = jtoken.ToObject<Order>();
                 order.V = jtoken.Value<int>("v");
                 order.R = jtoken.Value<string>("r");
                 order.S = jtoken.Value<string>("s");
                 order.Raw = jtoken.ToString();
-
-                return order;
             }
-            catch (Exception ex)
+            catch
             {
 
             }
 
-            return null;
+            return order;
         }
 
         public bool Equals(Order other)

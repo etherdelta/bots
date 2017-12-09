@@ -45,6 +45,7 @@ namespace EhterDelta.Bots.Dontnet
                 Sells = new List<Order>(),
                 Buys = new List<Order>()
             };
+
             Trades = new List<Trade>();
             MyTrades = new List<Trade>();
 
@@ -334,7 +335,7 @@ namespace EhterDelta.Bots.Dontnet
             var sells = ((JArray)orders["sells"])
                 .Where(jtoken =>
                     jtoken["tokenGive"] != null && jtoken["tokenGive"].ToString() == Config.Token &&
-                    //jtoken["ethAvailableVolumeBase"] != null && jtoken["ethAvailableVolumeBase"].ToObject<decimal>() > minOrderSize &&
+                    jtoken["ethAvailableVolumeBase"] != null && jtoken["ethAvailableVolumeBase"].ToObject<decimal>() > minOrderSize &&
                     (jtoken["deleted"] == null || jtoken["deleted"].ToObject<bool>() == false)
                 )
               .Select(jtoken => Order.FromJson(jtoken));
