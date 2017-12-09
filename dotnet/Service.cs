@@ -73,30 +73,7 @@ namespace EhterDelta.Bots.Dontnet
 
         internal async Task<TransactionReceipt> TakeOrder(Order order, BigInteger amount)
         {
-            var fnTest = EtherDeltaContract.GetFunction("testTrade");
-            var willPass = await fnTest.CallAsync<bool>(
-                order.TokenGet,
-                order.AmountGet.Value,
-                order.TokenGive,
-                order.AmountGive.Value,
-                order.Expires,
-                order.Nonce,
-                order.User,
-                order.V,
-                order.R.HexToByteArray(),
-                order.S.HexToByteArray(),
-                amount,
-                Config.User
-            );
-
-            if (!willPass)
-            {
-                Log("Order will fail");
-                throw new Exception("Order will fail");
-            }
-
-            var fnTrade = EtherDeltaContract.GetFunction("trade");
-            var data = fnTrade.GetData(
+            var funvtionInput = new object[] {
                 order.TokenGet,
                 order.AmountGet.Value,
                 order.TokenGive,
@@ -108,9 +85,19 @@ namespace EhterDelta.Bots.Dontnet
                 order.R.HexToByteArray(),
                 order.S.HexToByteArray(),
                 amount
-            );
+            };
 
-            var gas = fnTrade.EstimateGasAsync();
+            var fnTest = EtherDeltaContract.GetFunction("testTrade");
+            var willPass = await fnTest.CallAsync<bool>(funvtionInput);
+
+            if (!willPass)
+            {
+                Log("Order will fail");
+                throw new Exception("Order will fail");
+            }
+
+            var fnTrade = EtherDeltaContract.GetFunction("trade");
+            var data = fnTrade.GetData(funvtionInput);
 
             var txCount = await Web3.Eth.Transactions.GetTransactionCount.SendRequestAsync(Config.User);
             var encoded = Web3.OfflineTransactionSigner.SignTransaction(Config.PrivateKey, Config.AddressEtherDelta, amount,
@@ -136,11 +123,10 @@ namespace EhterDelta.Bots.Dontnet
             return await Web3.Eth.Blocks.GetBlockNumber.SendRequestAsync();
         }
 
-        internal Order CreateOrder(OrderType orderType, BigInteger expires, decimal price, BigInteger amount)
+        internal Order CreateOrder(OrderType orderType, BigInteger expires, BigInteger price, BigInteger amount)
         {
-            var uc = new UnitConversion();
-            var amountBigNum = orderType == OrderType.Buy ? amount / uc.ToWei(price) : amount;
-            var amountBaseBigNum = amount * new BigInteger(price);
+            var amountBigNum = orderType == OrderType.Buy ? amount / price : amount;
+            var amountBaseBigNum = amount * price;
             var contractAddr = Config.AddressEtherDelta;
             var tokenGet = orderType == OrderType.Buy ? Config.Token : ZeroToken;
             var tokenGive = orderType == OrderType.Sell ? Config.Token : ZeroToken;
@@ -206,6 +192,7 @@ namespace EhterDelta.Bots.Dontnet
         private void SocketMessageReceived(object sender, MessageReceivedEventArgs e)
         {
             Message message = Message.ParseMessage(e.Message);
+            Log($"Got {message.Event} event");
             switch (message.Event)
             {
                 case "market":
@@ -220,6 +207,7 @@ namespace EhterDelta.Bots.Dontnet
                     UpdateOrders(message.Data);
                     break;
                 default:
+                    Log(e.Message);
                     break;
             }
         }

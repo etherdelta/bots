@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Numerics;
 using Newtonsoft.Json.Linq;
 using System;
+using Nethereum.Hex.HexConvertors.Extensions;
 
 namespace EhterDelta.Bots.Dontnet
 {
@@ -38,21 +39,22 @@ namespace EhterDelta.Bots.Dontnet
 
         internal static Order FromJson(JToken jtoken)
         {
-            var order = jtoken.ToObject<Order>();
             try
             {
+                var order = jtoken.ToObject<Order>();
                 order.V = jtoken.Value<int>("v");
                 order.R = jtoken.Value<string>("r");
                 order.S = jtoken.Value<string>("s");
+                order.Raw = jtoken.ToString();
+
+                return order;
             }
             catch (Exception ex)
             {
-                Console.WriteLine(ex.Message);
+
             }
 
-            order.Raw = jtoken.ToString();
-
-            return order;
+            return null;
         }
 
         public bool Equals(Order other)
