@@ -52,7 +52,9 @@ namespace EhterDelta.Bots.Dontnet
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine(ex);
+                    Console.ForegroundColor = ConsoleColor.Red;
+                    Console.WriteLine(ex.Message);
+                    Console.ResetColor();
                 }
             }
 
