@@ -89,8 +89,8 @@ if __name__ == "__main__":
         es.send_message(order)
 
     # Create buy orders
-    for sellordernr in range(1,sellOrdersToPlace+1):
-        price = midmarket - sellordernr * midmarket * marginfactor
+    for buyordernr in range(1,buyOrdersToPlace+1):
+        price = midmarket - buyordernr * midmarket * marginfactor
         amount = float(buyVolumeToPlace) / float(price) / float(buyOrdersToPlace)
         order = es.createOrder('buy', expires, price, amount, token, userAccount, user_wallet_private_key)
         es.send_message(order)
