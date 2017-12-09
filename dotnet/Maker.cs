@@ -1,9 +1,8 @@
-using System;
-using System.Numerics;
-using System.Linq;
-using System.Collections.Generic;
-using System.Threading.Tasks;
 using Nethereum.Util;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
 
 namespace EhterDelta.Bots.Dontnet
 {
@@ -20,7 +19,6 @@ namespace EhterDelta.Bots.Dontnet
             var sellOrdersToPlace = ordersPerSide - Service.MyOrders.Sells.Count();
             var buyVolumeToPlace = EtherDeltaETH;
             var sellVolumeToPlace = EtherDeltaToken;
-
             var bestBuy = Service.GetBestAvailableBuy();
             var bestSell = Service.GetBestAvailableSell();
 
@@ -57,6 +55,7 @@ namespace EhterDelta.Bots.Dontnet
                     Console.WriteLine(ex);
                 }
             }
+
             for (var i = 0; i < buyOrdersToPlace; i += 1)
             {
                 var price = midMarket - ((i + 1) * midMarket * 0.05m);
@@ -73,13 +72,12 @@ namespace EhterDelta.Bots.Dontnet
                 }
             }
 
-
             var orderTasks = new List<Task>();
             orders.ForEach(order =>
             {
-                orderTasks.Add(Service.TakeOrder(order, 1));
+                var amount = order.TokenGive == Service.ZeroToken ? order.AmountGet : order.AmountGive;
+                orderTasks.Add(Service.TakeOrder(order, amount));
             });
-
 
             try
             {

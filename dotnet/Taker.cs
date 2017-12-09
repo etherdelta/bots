@@ -1,5 +1,5 @@
-using System;
 using Nethereum.Util;
+using System;
 
 namespace EhterDelta.Bots.Dontnet
 {

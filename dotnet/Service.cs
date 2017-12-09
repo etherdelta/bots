@@ -1,5 +1,10 @@
+using Nethereum.ABI.FunctionEncoding;
+using Nethereum.ABI.Model;
 using Nethereum.Contracts;
-using Nethereum.Util;
+using Nethereum.Hex.HexConvertors.Extensions;
+using Nethereum.Hex.HexTypes;
+using Nethereum.RPC.Eth.DTOs;
+using Nethereum.Signer;
 using Nethereum.Web3;
 using Newtonsoft.Json.Linq;
 using System;
@@ -9,21 +14,12 @@ using System.Linq;
 using System.Numerics;
 using System.Threading.Tasks;
 using WebSocket4Net;
-using System.Text;
-using Nethereum.ABI;
-using Nethereum.Hex.HexConvertors.Extensions;
-using Nethereum.RPC.Eth.DTOs;
-using Nethereum.Hex.HexTypes;
-using Nethereum.ABI.FunctionEncoding;
-using Nethereum.ABI.Model;
-using Nethereum.Signer;
-using Nethereum.ABI.Encoders;
 
 namespace EhterDelta.Bots.Dontnet
 {
     public class Service
     {
-        private const string ZeroToken = "0x0000000000000000000000000000000000000000";
+        public const string ZeroToken = "0x0000000000000000000000000000000000000000";
         private WebSocket socket;
         const int socketTimeout = 20000;
         private ILogger logger;

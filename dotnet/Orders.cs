@@ -1,9 +1,8 @@
 using Nethereum.Hex.HexTypes;
-using System.Collections.Generic;
-using System.Numerics;
 using Newtonsoft.Json.Linq;
 using System;
-using Nethereum.Hex.HexConvertors.Extensions;
+using System.Collections.Generic;
+using System.Numerics;
 
 namespace EhterDelta.Bots.Dontnet
 {
@@ -48,10 +47,7 @@ namespace EhterDelta.Bots.Dontnet
                 order.S = jtoken.Value<string>("s");
                 order.Raw = jtoken.ToString();
             }
-            catch
-            {
-
-            }
+            catch { }
 
             return order;
         }
