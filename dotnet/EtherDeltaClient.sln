@@ -1,0 +1,17 @@
+
+Microsoft Visual Studio Solution File, Format Version 14.00
+# Visual Studio 2017
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EtherDeltaClient", "EtherDeltaClient.csproj", "{2E39944F-2564-4DF5-A46D-011F59CD704B}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{2E39944F-2564-4DF5-A46D-011F59CD704B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2E39944F-2564-4DF5-A46D-011F59CD704B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2E39944F-2564-4DF5-A46D-011F59CD704B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2E39944F-2564-4DF5-A46D-011F59CD704B}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal
