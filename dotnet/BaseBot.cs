@@ -1,10 +1,10 @@
-using Nethereum.Util;
 using System;
 using System.Linq;
 using System.Numerics;
 using System.Threading.Tasks;
+using Nethereum.Util;
 
-namespace EhterDelta.Bots.Dontnet
+namespace EhterDelta.Bots.DotNet
 {
     public abstract class BaseBot
     {
@@ -15,13 +15,13 @@ namespace EhterDelta.Bots.Dontnet
         protected BigInteger EtherDeltaToken { get; set; }
         protected BigInteger WalletToken { get; set; }
 
-        public BaseBot(EtherDeltaConfiguration config, ILogger logger = null)
+        protected BaseBot(EtherDeltaConfiguration config, ILogger logger = null)
         {
             Console.Clear();
             Console.ResetColor();
             Service = new Service(config, logger);
 
-            Task[] tasks = new[] {
+            Task[] tasks = {
                 GetMarket(),
                 GetBalanceAsync("ETH", config.User),
                 GetBalanceAsync(config.Token, config.User),
@@ -43,7 +43,7 @@ namespace EhterDelta.Bots.Dontnet
             BigInteger balance = 0;
             try
             {
-                balance = await Service.GetEtherDeltaBalance(token, user);
+                balance = (BigInteger) await this.Service.GetEtherDeltaBalance(token, user);
             }
             catch (TimeoutException)
             {
@@ -67,7 +67,7 @@ namespace EhterDelta.Bots.Dontnet
 
             try
             {
-                balance = await Service.GetBalance(token, user);
+                balance = (BigInteger) await this.Service.GetBalance(token, user);
             }
             catch (TimeoutException)
             {
@@ -90,7 +90,7 @@ namespace EhterDelta.Bots.Dontnet
             Console.WriteLine();
             Console.WriteLine("Recent trades");
             Console.WriteLine("====================================");
-            int numTrades = 10;
+            const int numTrades = 10;
 
             if (Service.Trades != null)
             {
@@ -98,7 +98,7 @@ namespace EhterDelta.Bots.Dontnet
                 foreach (var trade in trades)
                 {
                     Console.ForegroundColor = trade.Side == "sell" ? ConsoleColor.Red : ConsoleColor.Green;
-                    Console.WriteLine($"{trade.Date.ToLocalTime()} {trade.Side} {trade.Amount.ToString("N3")} @ {trade.Price.ToString("N9")}");
+                    Console.WriteLine($"{trade.Date.ToLocalTime()} {trade.Side} {trade.Amount:N3} @ {trade.Price:N9}");
                 }
             }
 
@@ -110,16 +110,16 @@ namespace EhterDelta.Bots.Dontnet
             Console.WriteLine();
             Console.WriteLine("Order book");
             Console.WriteLine("====================================");
-            int ordersPerSide = 10;
+            const int ordersPerSide = 10;
 
-            if (Service.Orders.Sells.Count() == 0 && Service.Orders.Buys.Count() == 0)
+            if (!Service.Orders.Sells.Any() && !Service.Orders.Buys.Any())
             {
                 Console.WriteLine("No sell or buy orders");
                 return;
             }
 
-            var sells = Service.Orders.Sells.Take(ordersPerSide).Reverse();
-            var buys = Service.Orders.Buys.Take(ordersPerSide);
+            var sells = Service.Orders.Sells.Take(ordersPerSide).Reverse().ToList();
+            var buys = Service.Orders.Buys.Take(ordersPerSide).ToList();
 
             Console.ForegroundColor = ConsoleColor.Red;
             foreach (var order in sells)
@@ -128,11 +128,11 @@ namespace EhterDelta.Bots.Dontnet
             }
             Console.ResetColor();
 
-            if (buys.Count() > 0 && sells.Count() > 0)
+            if (buys.Any() && sells.Any())
             {
                 var salesPrice = sells.Last().Price;
                 var buysPrice = buys.Last().Price;
-                Console.WriteLine($"---- Spread ({(salesPrice - buysPrice).ToString("N9")}) ----");
+                Console.WriteLine($"---- Spread ({(salesPrice - buysPrice):N9}) ----");
             }
             else
             {
@@ -141,13 +141,10 @@ namespace EhterDelta.Bots.Dontnet
 
             Console.ForegroundColor = ConsoleColor.Green;
 
-            if (buys != null)
-            {
                 foreach (var order in buys)
                 {
                     Console.WriteLine(FormatOrder(order));
                 }
-            }
 
             Console.ResetColor();
         }
@@ -158,15 +155,15 @@ namespace EhterDelta.Bots.Dontnet
             Console.WriteLine();
             Console.WriteLine("Account balances");
             Console.WriteLine("====================================");
-            Console.WriteLine($"Wallet ETH balance:         {uc.FromWei(WalletETH).ToString("N18")}");
-            Console.WriteLine($"EtherDelta ETH balance:     {uc.FromWei(EtherDeltaETH).ToString("N18")}");
-            Console.WriteLine($"Wallet token balance:       {uc.FromWei(WalletToken).ToString("N18")}");
-            Console.WriteLine($"EtherDelta token balance:   {uc.FromWei(EtherDeltaToken).ToString("N18")}");
+            Console.WriteLine($"Wallet ETH balance:         {uc.FromWei(this.WalletETH):N18}");
+            Console.WriteLine($"EtherDelta ETH balance:     {uc.FromWei(this.EtherDeltaETH):N18}");
+            Console.WriteLine($"Wallet token balance:       {uc.FromWei(this.WalletToken):N18}");
+            Console.WriteLine($"EtherDelta token balance:   {uc.FromWei(this.EtherDeltaToken):N18}");
         }
 
         private string FormatOrder(Order order)
         {
-            return $"{order.Price.ToString("N9")} {order.EthAvailableVolume.ToString("N3"),20}";
+            return $"{order.Price:N9} {order.EthAvailableVolume,20:N3}";
         }
 
         private async Task GetMarket()
@@ -185,10 +182,7 @@ namespace EhterDelta.Bots.Dontnet
 
         ~BaseBot()
         {
-            if (Service != null)
-            {
-                Service.Close();
-            }
+            this.Service?.Close();
         }
     }
 }

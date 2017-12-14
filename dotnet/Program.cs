@@ -2,9 +2,10 @@
 
 using System;
 using System.Configuration;
+using System.Diagnostics;
 using System.Numerics;
 
-namespace EhterDelta.Bots.Dontnet
+namespace EhterDelta.Bots.DotNet
 {
     class Program
     {
@@ -28,8 +29,8 @@ namespace EhterDelta.Bots.Dontnet
                 User = ConfigurationManager.AppSettings["User"],
                 PrivateKey = ConfigurationManager.AppSettings["PrivateKey"],
                 UnitDecimals = int.Parse(ConfigurationManager.AppSettings["UnitDecimals"]),
-                GasPrice = new BigInteger(UInt64.Parse(ConfigurationManager.AppSettings["GasPrice"])),
-                GasLimit = new BigInteger(UInt64.Parse(ConfigurationManager.AppSettings["GasLimit"]))
+                GasPrice = BigInteger.Parse(ConfigurationManager.AppSettings["GasPrice"]),
+                GasLimit = BigInteger.Parse(ConfigurationManager.AppSettings["GasLimit"])
             };
 
             ILogger logger = null;
@@ -46,6 +47,11 @@ namespace EhterDelta.Bots.Dontnet
             {
                 new Maker(config, logger);
             }
+
+            if (!Debugger.IsAttached) return;
+
+            Console.WriteLine("Press enter to exit");
+            while (Console.ReadKey().Key != ConsoleKey.Enter);
         }
 
         private class ConsoleLogger : ILogger

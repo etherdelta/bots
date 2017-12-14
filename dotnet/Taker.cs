@@ -1,7 +1,7 @@
-using Nethereum.Util;
 using System;
+using Nethereum.Util;
 
-namespace EhterDelta.Bots.Dontnet
+namespace EhterDelta.Bots.DotNet
 {
     public class Taker : BaseBot
     {
@@ -11,8 +11,8 @@ namespace EhterDelta.Bots.Dontnet
 
             if (order != null)
             {
-                Console.WriteLine($"Best available: Sell {order.EthAvailableVolume.ToString("N3")} @ {order.Price.ToString("N9")}");
-                var desiredAmountBase = 0.001m;
+                Console.WriteLine($"Best available: Sell {order.EthAvailableVolume:N3} @ {order.Price:N9}");
+                const decimal desiredAmountBase = 0.001m;
 
                 var fraction = Math.Min(desiredAmountBase / order.EthAvailableVolumeBase, 1);
                 try
@@ -24,14 +24,7 @@ namespace EhterDelta.Bots.Dontnet
                 catch (Exception ex)
                 {
                     Console.ForegroundColor = ConsoleColor.Red;
-                    if (ex.InnerException != null)
-                    {
-                        Console.WriteLine(ex.InnerException.Message);
-                    }
-                    else
-                    {
-                        Console.WriteLine(ex.Message);
-                    }
+                    Console.WriteLine(ex.InnerException != null ? ex.InnerException.Message : ex.Message);
                     Console.ResetColor();
                 }
             }

@@ -1,6 +1,6 @@
 using System.Numerics;
 
-namespace EhterDelta.Bots.Dontnet
+namespace EhterDelta.Bots.DotNet
 {
     public class EtherDeltaConfiguration
     {

@@ -1,14 +1,10 @@
-using Newtonsoft.Json.Linq;
 using System;
+using Newtonsoft.Json.Linq;
 
-namespace EhterDelta.Bots.Dontnet
+namespace EhterDelta.Bots.DotNet
 {
     public class Trade
     {
-        public Trade()
-        {
-        }
-
         string TxHash { get; set; }
         public decimal Price { get; set; }
         public DateTime Date { get; set; }
@@ -39,9 +35,6 @@ namespace EhterDelta.Bots.Dontnet
             return other.TxHash == TxHash;
         }
 
-        public override int GetHashCode()
-        {
-            return TxHash.GetHashCode();
-        }
+        public override int GetHashCode() => TxHash.GetHashCode();
     }
 }

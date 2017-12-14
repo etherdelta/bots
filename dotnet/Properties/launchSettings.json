@@ -1,0 +1,16 @@
+{
+  "profiles": {
+    "EtherDeltaClient": {
+      "commandName": "Project",
+      "commandLineArgs": "maker"
+    },
+    "EtherDeltaClient - Maker": {
+      "commandName": "Project",
+      "commandLineArgs": "maker -v"
+    },
+    "EtherDeltaClient - Taker": {
+      "commandName": "Project",
+      "commandLineArgs": "taker -v"
+    }
+  }
+}

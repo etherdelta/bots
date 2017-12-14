@@ -1,7 +1,7 @@
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
-namespace EhterDelta.Bots.Dontnet
+namespace EhterDelta.Bots.DotNet
 {
     internal class Message
     {
@@ -24,28 +24,20 @@ namespace EhterDelta.Bots.Dontnet
             var message = new Message();
 
             // message is Text/Json
-            if (messageString.StartsWith("42"))
+            if (!messageString.StartsWith("42")) return message;
+            messageString = messageString.Remove(0, 2);
+            var tmpData = JsonConvert.DeserializeObject(messageString);
+
+            if (tmpData == null || tmpData.GetType() != typeof(JArray)) return message;
+            var array = (JArray)tmpData;
+            if (array.Count > 0 && array[0].GetType() == typeof(JValue))
             {
-                messageString = messageString.Remove(0, 2);
-                var tmpData = JsonConvert.DeserializeObject(messageString);
+                message.Event = array[0].ToString();
+            }
 
-                if (tmpData != null)
-                {
-                    if (tmpData.GetType() == typeof(JArray))
-                    {
-                        var array = (JArray)tmpData;
-                        if (array.Count > 0 && array[0].GetType() == typeof(JValue))
-                        {
-                            message.Event = array[0].ToString();
-                        }
-
-                        if (array.Count > 1)
-                        {
-                            message.Data = (object)array[1];
-                        }
-                    }
-                }
-
+            if (array.Count > 1)
+            {
+                message.Data = array[1];
             }
 
             return message;

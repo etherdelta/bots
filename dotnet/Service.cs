@@ -1,3 +1,9 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Numerics;
+using System.Threading.Tasks;
 using Nethereum.ABI.FunctionEncoding;
 using Nethereum.ABI.Model;
 using Nethereum.Contracts;
@@ -7,27 +13,22 @@ using Nethereum.RPC.Eth.DTOs;
 using Nethereum.Signer;
 using Nethereum.Web3;
 using Newtonsoft.Json.Linq;
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Numerics;
-using System.Threading.Tasks;
 using WebSocket4Net;
+using ErrorEventArgs = SuperSocket.ClientEngine.ErrorEventArgs;
 
-namespace EhterDelta.Bots.Dontnet
+namespace EhterDelta.Bots.DotNet
 {
     public class Service
     {
         public const string ZeroToken = "0x0000000000000000000000000000000000000000";
-        private WebSocket socket;
-        const int socketTimeout = 20000;
-        private ILogger logger;
-        private bool gotMarket = false;
+        private WebSocket _socket;
+        private const int SocketTimeout = 20000;
+        private readonly ILogger _logger;
+        private bool _gotMarket;
 
         public Service(EtherDeltaConfiguration config, ILogger configLogger)
         {
-            logger = configLogger;
+            this._logger = configLogger;
             Log("Starting");
 
             Orders = new Orders
@@ -141,14 +142,14 @@ namespace EhterDelta.Bots.Dontnet
                 orderNonce
             };
 
-            var prms = new Parameter[] {
+            var prms = new[] {
                 new Parameter("address",1),
                 new Parameter("address",1),
                 new Parameter("uint256",1),
                 new Parameter("address",1),
                 new Parameter("uint256",1),
                 new Parameter("uint256",1),
-                new Parameter("uint256",1),
+                new Parameter("uint256",1)
             };
 
             var pe = new ParametersEncoder();
@@ -171,7 +172,7 @@ namespace EhterDelta.Bots.Dontnet
                 User = Config.User,
                 V = ethEcdsa.V,
                 R = ethEcdsa.R.ToHex(true),
-                S = ethEcdsa.S.ToHex(true),
+                S = ethEcdsa.S.ToHex(true)
             };
 
             return order;
@@ -180,9 +181,9 @@ namespace EhterDelta.Bots.Dontnet
         internal void Close()
         {
             Log("Closing ...");
-            if (socket != null && socket.State == WebSocketState.Open)
+            if (this._socket != null && this._socket.State == WebSocketState.Open)
             {
-                socket.Close();
+                this._socket.Close();
             }
         }
 
@@ -195,7 +196,7 @@ namespace EhterDelta.Bots.Dontnet
                 case "market":
                     UpdateOrders(message.Data.orders);
                     UpdateTrades(message.Data.trades);
-                    gotMarket = true;
+                    this._gotMarket = true;
                     break;
                 case "trades":
                     UpdateTrades(message.Data);
@@ -214,16 +215,15 @@ namespace EhterDelta.Bots.Dontnet
             Log("SOCKET CLOSED");
             Log(e.GetType().ToString());
 
-            var ea = e as ClosedEventArgs;
-            if (ea != null)
-            {
-                Log(ea.Code.ToString());
-                if (ea.Code == 1005) // no reason given
-                {
-                    Log("Reconnecting...");
-                    InitSocket();
-                }
-            }
+            if (!(e is ClosedEventArgs ea)) return;
+
+            this.Log(ea.Code.ToString());
+
+            //Valid reason returned
+            if (ea.Code != 1005) return;
+
+            this.Log("Reconnecting...");
+            this.InitSocket();
         }
 
         internal async Task<BigInteger> GetBalance(string token, string user)
@@ -277,7 +277,7 @@ namespace EhterDelta.Bots.Dontnet
             return balance;
         }
 
-        private void SocketError(object sender, SuperSocket.ClientEngine.ErrorEventArgs e)
+        private void SocketError(object sender, ErrorEventArgs e)
         {
             Log("SOCKET ERROR: ");
             Log(e.Exception.Message);
@@ -291,8 +291,8 @@ namespace EhterDelta.Bots.Dontnet
         public async Task WaitForMarket()
         {
             Log("Wait for Market");
-            gotMarket = false;
-            socket.Send(new Message
+            this._gotMarket = false;
+            this._socket.Send(new Message
             {
                 Event = "getMarket",
                 Data = new
@@ -304,13 +304,13 @@ namespace EhterDelta.Bots.Dontnet
 
             var gotMarketTask = Task.Run(() =>
             {
-                while (!gotMarket)
+                while (!this._gotMarket)
                 {
                     Task.Delay(1000).Wait();
                 }
             });
 
-            var completed = await Task.WhenAny(gotMarketTask, Task.Delay(socketTimeout));
+            await Task.WhenAny(gotMarketTask, Task.Delay(SocketTimeout));
             Log("Market Completed ...");
 
             if (!gotMarketTask.IsCompletedSuccessfully)
@@ -321,41 +321,42 @@ namespace EhterDelta.Bots.Dontnet
 
         private void UpdateOrders(dynamic ordersObj)
         {
-            var minOrderSize = 0.001m;
-            var orders = ordersObj as JObject;
-            if (orders == null)
+            const decimal minOrderSize = 0.001m;
+            if (!(ordersObj is JObject orders))
             {
                 return;
             }
 
-            var sells = ((JArray)orders["sells"])
-                .Where(jtoken =>
-                    jtoken["tokenGive"] != null && jtoken["tokenGive"].ToString() == Config.Token &&
-                    jtoken["ethAvailableVolumeBase"] != null && jtoken["ethAvailableVolumeBase"].ToObject<decimal>() > minOrderSize &&
-                    (jtoken["deleted"] == null || jtoken["deleted"].ToObject<bool>() == false)
-                )
-              .Select(jtoken => Order.FromJson(jtoken));
+            var sells = ((JArray) orders["sells"])
+                    .Where(jtoken =>
+                               jtoken["tokenGive"] != null && jtoken["tokenGive"].ToString() == Config.Token &&
+                               jtoken["ethAvailableVolumeBase"] != null && jtoken["ethAvailableVolumeBase"].ToObject<decimal>() > minOrderSize &&
+                               (jtoken["deleted"] == null || jtoken["deleted"].ToObject<bool>() == false)
+                          )
+                    .Select(Order.FromJson)
+                    .ToList();
 
-            if (sells != null && sells.Count() > 0)
+            if (sells.Any())
             {
-                Log($"Got {sells.Count()} sells");
+                Log($"Got {sells.Count} sells");
                 Orders.Sells = Orders.Sells.Union(sells);
                 MyOrders.Sells = MyOrders.Sells.Union(sells.Where(s => s.User == Config.User));
             }
 
-            var buys = ((JArray)orders["buys"])
-                .Where(jtoken =>
-                    jtoken["tokenGet"] != null && jtoken["tokenGet"].ToString() == Config.Token &&
-                    jtoken["ethAvailableVolumeBase"] != null && jtoken["ethAvailableVolumeBase"].ToObject<decimal>() > minOrderSize &&
-                    (jtoken["deleted"] == null || jtoken["deleted"].ToObject<bool>() == false)
-                )
-              .Select(jtoken => Order.FromJson(jtoken));
+            var buys = ((JArray) orders["buys"])
+                    .Where(jtoken =>
+                               jtoken["tokenGet"] != null && jtoken["tokenGet"].ToString() == Config.Token &&
+                               jtoken["ethAvailableVolumeBase"] != null && jtoken["ethAvailableVolumeBase"].ToObject<decimal>() > minOrderSize &&
+                               (jtoken["deleted"] == null || jtoken["deleted"].ToObject<bool>() == false)
+                          )
+                    .Select(Order.FromJson)
+                    .ToList();
 
-            if (buys != null && buys.Count() > 0)
+            if (!buys.Any()) return;
             {
-                Log($"Got {buys.Count()} buys");
-                Orders.Buys = Orders.Buys.Union(buys);
-                MyOrders.Buys = MyOrders.Buys.Union(buys.Where(s => s.User == Config.User));
+                this.Log($"Got {buys.Count} buys");
+                this.Orders.Buys = this.Orders.Buys.Union(buys);
+                this.MyOrders.Buys = this.MyOrders.Buys.Union(buys.Where(s => s.User == this.Config.User));
             }
         }
 
@@ -368,13 +369,14 @@ namespace EhterDelta.Bots.Dontnet
 
             Log($"Got {trades.Count} trades");
             var tradesArray = trades
-                .Where(jtoken =>
-                    jtoken["txHash"] != null &&
-                    jtoken["amount"] != null && jtoken["amount"].ToObject<decimal>() > 0m
-                )
-              .Select(jtoken => Trade.FromJson(jtoken));
+                    .Where(jtoken =>
+                               jtoken["txHash"] != null &&
+                               jtoken["amount"] != null && jtoken["amount"].ToObject<decimal>() > 0m
+                          )
+                    .Select(Trade.FromJson)
+                    .ToList();
 
-            Log($"Parsed {tradesArray.Count()} trades");
+            Log($"Parsed {tradesArray.Count} trades");
             Trades = Trades.Union(tradesArray);
             Log($"total {Trades.Count()} trades");
         }
@@ -382,20 +384,17 @@ namespace EhterDelta.Bots.Dontnet
 
         private void Log(string message)
         {
-            if (logger != null)
-            {
-                logger.Log(message);
-            }
+            this._logger?.Log(message);
         }
 
         private void InitSocket()
         {
-            socket = new WebSocket(Config.SocketUrl);
-            socket.Opened += SocketOpened;
-            socket.Error += SocketError;
-            socket.Closed += SocketClosed;
-            socket.MessageReceived += SocketMessageReceived;
-            socket.OpenAsync().Wait();
+            this._socket = new WebSocket(Config.SocketUrl);
+            this._socket.Opened += SocketOpened;
+            this._socket.Error += SocketError;
+            this._socket.Closed += SocketClosed;
+            this._socket.MessageReceived += SocketMessageReceived;
+            this._socket.OpenAsync().Wait();
         }
     }
 

@@ -1,12 +1,11 @@
-using Nethereum.Hex.HexTypes;
-using Newtonsoft.Json.Linq;
-using System;
 using System.Collections.Generic;
 using System.Numerics;
+using Nethereum.Hex.HexTypes;
+using Newtonsoft.Json.Linq;
 
-namespace EhterDelta.Bots.Dontnet
+namespace EhterDelta.Bots.DotNet
 {
-    public class Orders : Object
+    public class Orders
     {
         public IEnumerable<Order> Sells { get; set; }
         public IEnumerable<Order> Buys { get; set; }
@@ -61,9 +60,6 @@ namespace EhterDelta.Bots.Dontnet
             return other.Id == Id;
         }
 
-        public override int GetHashCode()
-        {
-            return Id.GetHashCode();
-        }
+        public override int GetHashCode() => Id.GetHashCode();
     }
 }
