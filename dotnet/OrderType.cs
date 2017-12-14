@@ -1,4 +1,4 @@
-namespace EhterDelta.Bots.Dontnet
+namespace EhterDelta.Bots.DotNet
 {
     internal enum OrderType
     {

@@ -1,10 +1,10 @@
-using Nethereum.Util;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Nethereum.Util;
 
-namespace EhterDelta.Bots.Dontnet
+namespace EhterDelta.Bots.DotNet
 {
     public class Maker : BaseBot
     {
@@ -13,7 +13,7 @@ namespace EhterDelta.Bots.Dontnet
 
             PrintMyOrders();
 
-            var ordersPerSide = 1;
+            const int ordersPerSide = 1;
             var expires = Service.GetBlockNumber().Result + 10;
             var buyOrdersToPlace = ordersPerSide - Service.MyOrders.Buys.Count();
             var sellOrdersToPlace = ordersPerSide - Service.MyOrders.Sells.Count();
@@ -44,7 +44,7 @@ namespace EhterDelta.Bots.Dontnet
             {
                 var price = midMarket + ((i + 1) * midMarket * 0.05m);
                 var amount = sellVolumeToPlace / sellOrdersToPlace;
-                Console.WriteLine($"Sell { amount.ToString("N3")} @ { price.ToString("N9")}");
+                Console.WriteLine($"Sell { amount.ToString("N3")} @ { price:N9}");
                 try
                 {
                     var order = Service.CreateOrder(OrderType.Sell, expires, uc.ToWei(price), amount);
@@ -62,7 +62,7 @@ namespace EhterDelta.Bots.Dontnet
             {
                 var price = midMarket - ((i + 1) * midMarket * 0.05m);
                 var amount = uc.FromWei(buyVolumeToPlace) / price / buyOrdersToPlace;
-                Console.WriteLine($"Buy { amount.ToString("N3")} @ { price.ToString("N9")}");
+                Console.WriteLine($"Buy { amount:N3} @ { price:N9}");
                 try
                 {
                     var order = Service.CreateOrder(OrderType.Buy, expires, uc.ToWei(price), uc.ToWei(amount));
@@ -89,14 +89,7 @@ namespace EhterDelta.Bots.Dontnet
             {
 
                 Console.ForegroundColor = ConsoleColor.Red;
-                if (ex.InnerException != null)
-                {
-                    Console.WriteLine(ex.InnerException.Message);
-                }
-                else
-                {
-                    Console.WriteLine(ex.Message);
-                }
+                Console.WriteLine(ex.InnerException != null ? ex.InnerException.Message : ex.Message);
                 Console.ResetColor();
             }
 
