@@ -4,11 +4,12 @@ using System.IO;
 using System.Linq;
 using System.Numerics;
 using System.Threading.Tasks;
-using Nethereum.ABI.FunctionEncoding;
+using Nethereum.ABI.Encoders;
 using Nethereum.ABI.Model;
 using Nethereum.Contracts;
 using Nethereum.Hex.HexConvertors.Extensions;
 using Nethereum.Hex.HexTypes;
+using Nethereum.KeyStore.Crypto;
 using Nethereum.RPC.Eth.DTOs;
 using Nethereum.Signer;
 using Nethereum.Web3;
@@ -152,13 +153,18 @@ namespace EhterDelta.Bots.DotNet
                 new Parameter("uint256",1)
             };
 
-            var pe = new ParametersEncoder();
-            var data = pe.EncodeParameters(prms, plainData);
+            var data = SolidityPack(plainData, prms);
+            var keystoreCrypto = new KeyStoreCrypto();
+           
+            var hashed = keystoreCrypto.CalculateSha256Hash(data);
 
-            var ms = new MessageSigner();
-            var signature = ms.HashAndSign(data, Config.PrivateKey);
 
-            var ethEcdsa = MessageSigner.ExtractEcdsaSignature(signature);
+            var signer = new EthereumMessageSigner();
+            var newHash = signer.HashPrefixedMessage(hashed);
+
+           
+            var signatureRaw = signer.SignAndCalculateV(newHash, Config.PrivateKey);
+           
 
             var order = new Order
             {
@@ -170,15 +176,51 @@ namespace EhterDelta.Bots.DotNet
                 Expires = expires,
                 Nonce = orderNonce,
                 User = Config.User,
-                V = ethEcdsa.V,
-                R = ethEcdsa.R.ToHex(true),
-                S = ethEcdsa.S.ToHex(true)
+                V = signatureRaw.V,
+                R = signatureRaw.R.ToHex(true),
+                S = signatureRaw.S.ToHex(true)
             };
 
             return order;
         }
+        private byte[] SolidityPack(object[] paramsArray, Parameter[] paramsTypes)
+        {
+            var intTypeEncoder = new IntTypeEncoder();
+            var cursor = new List<byte>();
+            for (var i = 0; i < paramsArray.Length; i++)
+            {
 
-        internal void Close()
+                if (paramsTypes[i].Type == "address")
+                {
+                    cursor.AddRange(EncodePacked(paramsArray[i]));
+                }
+                else if (paramsTypes[i].Type == "uint256")
+                {
+                    cursor.AddRange(intTypeEncoder.Encode(paramsArray[i]));
+                }
+
+            }
+
+            return cursor.ToArray();
+        }
+
+        private byte[] EncodePacked(object value)
+        {
+            var strValue = value as string;
+
+            if (strValue == null) throw new Exception("Invalid type for address expected as string");
+
+            if (strValue != null
+                && !strValue.StartsWith("0x", StringComparison.Ordinal))
+                value = "0x" + value;
+
+            if (strValue.Length == 42) return strValue.HexToByteArray();
+
+            throw new Exception("Invalid address (should be 20 bytes length): " + strValue);
+        }
+    
+
+    internal void Close()
         {
             Log("Closing ...");
             if (this._socket != null && this._socket.State == WebSocketState.Open)
